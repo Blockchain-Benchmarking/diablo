@@ -1,32 +1,29 @@
-GOBIN := go
-BUILDFLAGS := -v
-PKG := "diablo-benchmark"
-PKGFOLDERS := blockchains/... communication/... core/...
+GOFLAGS := -v
 
-GOPATH=$(PWD)/.go
-export GOPATH
+export GOPATH := $(CURDIR)/.go
 
-default: diablo
-	./diablo primary --verbose=trace --stat --env=accounts=algorand-accounts.yaml --env=contracts=teal-contracts 1 setup.yaml benchmark.yaml
 
-all: lint diablo
+default: all
+.PHONY: default
 
-reqs:
-	GO111MODULE=off GO111MODULE=off go get -v golang.org/x/lint/golint
-	$(GOBIN) mod download
-	$(GOBIN) mod vendor
 
-lint:
-	@golint -set_exit_status $(PKGFOLDERS)
+.PHONY: all
+all: diablo
 
-diablo:
-	$(GOBIN) build $(BUILDFLAGS) -o $@
 
+diablo: FORCE
+	go build $(GOFLAGS) -o $@
+
+
+.PHONY: clean
 clean:
 	-rm diablo
 
-cleanall: clean
-	-chmod -R 700 $(PWD)/.go
-	-rm -rf $(PWD)/.go
 
-.PHONY: default clean cleanall reqs diablo
+.PHONY: tidy
+tidy: clean
+	-chmod -R 700 $(GOPATH)
+	-rm -rf $(GOPATH)
+
+
+FORCE: ;
