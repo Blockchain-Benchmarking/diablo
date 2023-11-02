@@ -3,12 +3,13 @@ package mock
 
 import (
 	"bytes"
-	"diablo-benchmark/core"
-	"diablo-benchmark/util"
 	"encoding/binary"
 	"fmt"
 	"strconv"
 	"time"
+
+	"diablo/core"
+	"diablo/util"
 )
 
 

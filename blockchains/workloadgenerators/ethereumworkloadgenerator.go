@@ -3,8 +3,6 @@ package workloadgenerators
 import (
 	"bytes"
 	"context"
-	"diablo-benchmark/core/configs"
-	"diablo-benchmark/core/configs/parsers"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -15,6 +13,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"diablo/core/configs"
+	"diablo/core/configs/parsers"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"

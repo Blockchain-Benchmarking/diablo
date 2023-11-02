@@ -1,8 +1,9 @@
 package communication
 
 import (
-	"diablo-benchmark/blockchains/workloadgenerators"
 	"encoding/json"
+
+	"diablo/blockchains/workloadgenerators"
 )
 
 // EncodeWorkload Helper function to standardise the way that workloads and information is encoded/decoded through

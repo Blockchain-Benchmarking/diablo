@@ -3,7 +3,6 @@ package ndiem
 
 import (
 	"context"
-	"diablo-benchmark/core"
 	"encoding/hex"
 	"fmt"
 	"golang.org/x/crypto/ed25519"
@@ -11,6 +10,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"diablo/core"
 
 	"github.com/diem/client-sdk-go/diemclient"
 )

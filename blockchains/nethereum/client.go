@@ -4,9 +4,10 @@ package nethereum
 import (
 	"bytes"
 	"context"
-	"diablo-benchmark/core"
 	"math/big"
 	"sync"
+
+	"diablo/core"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/core/types"

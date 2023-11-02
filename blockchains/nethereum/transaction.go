@@ -4,13 +4,14 @@ package nethereum
 import (
 	"context"
 	"crypto/ecdsa"
-	"diablo-benchmark/core"
-	"diablo-benchmark/util"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"math/big"
 	"sync"
+
+	"diablo/core"
+	"diablo/util"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"

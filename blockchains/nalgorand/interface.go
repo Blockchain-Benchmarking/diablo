@@ -37,12 +37,13 @@ package nalgorand
 
 import (
 	"context"
-	"diablo-benchmark/core"
 	"fmt"
 	"golang.org/x/crypto/ed25519"
 	"gopkg.in/yaml.v3"
 	"os"
 	"strings"
+
+	"diablo/core"
 
 	"github.com/algorand/go-algorand-sdk/client/v2/algod"
 	"github.com/algorand/go-algorand-sdk/mnemonic"

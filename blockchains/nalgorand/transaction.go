@@ -3,10 +3,11 @@ package nalgorand
 
 import (
 	"context"
-	"diablo-benchmark/util"
 	"encoding/binary"
 	"fmt"
 	"io"
+
+	"diablo/util"
 
 	"github.com/algorand/go-algorand-sdk/client/v2/algod"
 	"github.com/algorand/go-algorand-sdk/crypto"

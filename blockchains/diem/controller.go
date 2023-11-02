@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"math/rand"
 
-	"go.uber.org/zap"
+	"diablo/core/configs"
+	"diablo/core/workload"
 
-	"diablo-benchmark/core/configs"
-	"diablo-benchmark/core/workload"
+	"go.uber.org/zap"
 )
 
 

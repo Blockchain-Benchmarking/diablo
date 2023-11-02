@@ -4,10 +4,11 @@ package ndiem
 import (
 	"bytes"
 	"context"
-	"diablo-benchmark/core"
 	"fmt"
 	"golang.org/x/crypto/ed25519"
 	"time"
+
+	"diablo/core"
 
 	"github.com/diem/client-sdk-go/diemclient"
 	"github.com/diem/client-sdk-go/diemjsonrpctypes"

@@ -3,11 +3,12 @@ package ndiem
 
 import (
 	"bytes"
-	"diablo-benchmark/core"
 	"encoding/hex"
 	"fmt"
 	"sync"
 	"time"
+
+	"diablo/core"
 
 	"github.com/diem/client-sdk-go/diemclient"
 	"github.com/diem/client-sdk-go/diemjsonrpctypes"

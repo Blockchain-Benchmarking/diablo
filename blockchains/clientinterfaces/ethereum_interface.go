@@ -5,15 +5,16 @@ package clientinterfaces
 
 import (
 	"context"
-	"diablo-benchmark/blockchains/workloadgenerators"
-	"diablo-benchmark/core/configs"
-	"diablo-benchmark/core/results"
 	"errors"
 	"fmt"
 	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"diablo/blockchains/workloadgenerators"
+	"diablo/core/configs"
+	"diablo/core/results"
 
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"

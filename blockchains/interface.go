@@ -2,9 +2,9 @@ package blockchain
 
 
 import (
-	"diablo-benchmark/core/configs"
-	"diablo-benchmark/core/results"
-	"diablo-benchmark/core/workload"
+	"diablo/core/configs"
+	"diablo/core/results"
+	"diablo/core/workload"
 )
 
 

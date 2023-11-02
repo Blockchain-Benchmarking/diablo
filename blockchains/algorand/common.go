@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"diablo-benchmark/core/configs"
+	"diablo/core/configs"
 )
 
 

@@ -1,13 +1,14 @@
 package core
 
 import (
-	"diablo-benchmark/blockchains/clientinterfaces"
-	"diablo-benchmark/communication"
-	"diablo-benchmark/core/configs"
-	"diablo-benchmark/core/handlers"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+
+	"diablo/blockchains/clientinterfaces"
+	"diablo/communication"
+	"diablo/core/configs"
+	"diablo/core/handlers"
 
 	"go.uber.org/zap"
 )

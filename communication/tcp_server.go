@@ -2,13 +2,14 @@ package communication
 
 import (
 	"bytes"
-	"diablo-benchmark/blockchains/workloadgenerators"
-	"diablo-benchmark/core/results"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net"
+
+	"diablo/blockchains/workloadgenerators"
+	"diablo/core/results"
 
 	"go.uber.org/zap"
 )

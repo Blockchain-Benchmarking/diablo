@@ -2,7 +2,7 @@ package diem
 
 
 import (
-	"diablo-benchmark/core/configs"
+	"diablo/core/configs"
 )
 
 

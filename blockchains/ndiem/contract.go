@@ -13,8 +13,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"diablo-benchmark/core"
-	"diablo-benchmark/util"
+	"diablo/core"
+	"diablo/util"
 
 	"github.com/diem/client-sdk-go/diemtypes"
 )

@@ -4,13 +4,14 @@
 package parsers
 
 import (
-	"diablo-benchmark/core/configs"
-	"diablo-benchmark/core/configs/validators"
-	"diablo-benchmark/core/workload"
 	"errors"
 	"io/ioutil"
 	"math"
 	"sort"
+
+	"diablo/core/configs"
+	"diablo/core/configs/validators"
+	"diablo/core/workload"
 
 	"gopkg.in/yaml.v3"
 )

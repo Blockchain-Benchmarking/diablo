@@ -4,9 +4,9 @@ package workloadgenerators
 import (
 	"math/big"
 
-	"diablo-benchmark/blockchains"
-	"diablo-benchmark/core/configs"
-	"diablo-benchmark/core/workload"
+	"diablo/blockchains"
+	"diablo/core/configs"
+	"diablo/core/workload"
 )
 
 

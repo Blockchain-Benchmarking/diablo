@@ -7,9 +7,9 @@
 package clientinterfaces
 
 import (
-	"diablo-benchmark/blockchains/workloadgenerators"
-	"diablo-benchmark/core/configs"
-	"diablo-benchmark/core/results"
+	"diablo/blockchains/workloadgenerators"
+	"diablo/core/configs"
+	"diablo/core/results"
 )
 
 // GenericInterface provides the required fields of the blockchain interface so that

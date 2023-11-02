@@ -6,11 +6,11 @@ import (
 	"math/rand"
 	"time"
 
-	"go.uber.org/zap"
+	"diablo/blockchains/algorand"
+	"diablo/blockchains/diem"
+	"diablo/core/configs"
 
-	"diablo-benchmark/blockchains/algorand"
-	"diablo-benchmark/blockchains/diem"
-	"diablo-benchmark/core/configs"
+	"go.uber.org/zap"
 )
 
 // GetWorkloadGenerator matches the workload generator with the name provided of the chain in the configuration

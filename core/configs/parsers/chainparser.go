@@ -1,12 +1,13 @@
 package parsers
 
 import (
-	"diablo-benchmark/core/configs"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
+
+	"diablo/core/configs"
 
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
