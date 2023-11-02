@@ -4,8 +4,9 @@ package nalgorand
 import (
 	"bytes"
 	"context"
-	"diablo-benchmark/core"
 	"sync"
+
+	"diablo/core"
 
 	"github.com/algorand/go-algorand-sdk/client/v2/algod"
 	"github.com/algorand/go-algorand-sdk/client/v2/common/models"

@@ -2,10 +2,10 @@ package clientinterfaces
 
 
 import (
-	"diablo-benchmark/blockchains"
-	"diablo-benchmark/blockchains/workloadgenerators"
-	"diablo-benchmark/core/configs"
-	"diablo-benchmark/core/results"
+	"diablo/blockchains"
+	"diablo/blockchains/workloadgenerators"
+	"diablo/core/configs"
+	"diablo/core/results"
 )
 
 

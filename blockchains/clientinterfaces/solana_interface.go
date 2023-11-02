@@ -2,9 +2,6 @@ package clientinterfaces
 
 import (
 	"context"
-	"diablo-benchmark/blockchains/workloadgenerators"
-	"diablo-benchmark/core/configs"
-	"diablo-benchmark/core/results"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +10,10 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"diablo/blockchains/workloadgenerators"
+	"diablo/core/configs"
+	"diablo/core/results"
 
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"

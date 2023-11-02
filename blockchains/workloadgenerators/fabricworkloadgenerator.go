@@ -1,15 +1,15 @@
 package workloadgenerators
 
 import (
-	"diablo-benchmark/blockchains/types"
-	"diablo-benchmark/core/configs"
-	"diablo-benchmark/core/configs/parsers"
 	"encoding/json"
 	"errors"
 	"fmt"
-
 	"math/big"
 	"strconv"
+
+	"diablo/blockchains/types"
+	"diablo/core/configs"
+	"diablo/core/configs/parsers"
 
 	"go.uber.org/zap"
 )

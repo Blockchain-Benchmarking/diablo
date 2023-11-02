@@ -6,11 +6,12 @@
 package validators
 
 import (
-	"diablo-benchmark/core/configs"
 	"errors"
 	"fmt"
 	"os"
 	"reflect"
+
+	"diablo/core/configs"
 
 	"go.uber.org/zap"
 )

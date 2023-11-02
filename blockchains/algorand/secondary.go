@@ -4,10 +4,10 @@ package algorand
 import (
 	"time"
 
-	"go.uber.org/zap"
+	"diablo/core/configs"
+	"diablo/core/results"
 
-	"diablo-benchmark/core/configs"
-	"diablo-benchmark/core/results"
+	"go.uber.org/zap"
 )
 
 

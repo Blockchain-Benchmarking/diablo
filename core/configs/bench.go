@@ -4,7 +4,7 @@
 // to the generation of the workload.
 package configs
 
-import "diablo-benchmark/core/workload"
+import "diablo/core/workload"
 
 // BenchConfig provides the main benchmark configuration structure, all information about the specified workload
 type BenchConfig struct {

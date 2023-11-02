@@ -1,10 +1,11 @@
 package clientinterfaces
 
 import (
-	"diablo-benchmark/blockchains/algorand"
-	"diablo-benchmark/blockchains/diem"
-	"diablo-benchmark/core/configs"
 	"fmt"
+
+	"diablo/blockchains/algorand"
+	"diablo/blockchains/diem"
+	"diablo/core/configs"
 )
 
 // GetBlockchainInterface maps the name of the blockchain in the config with the interface to implement.

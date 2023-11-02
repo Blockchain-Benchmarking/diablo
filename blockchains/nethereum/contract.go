@@ -3,13 +3,14 @@ package nethereum
 
 import (
 	"bufio"
-	"diablo-benchmark/core"
-	"diablo-benchmark/util"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"strings"
+
+	"diablo/core"
+	"diablo/util"
 
 	"github.com/ethereum/go-ethereum/common/compiler"
 )

@@ -2,11 +2,6 @@ package main
 
 
 import (
-	"diablo-benchmark/core"
-	"diablo-benchmark/blockchains/mock"
-	"diablo-benchmark/blockchains/nalgorand"
-	"diablo-benchmark/blockchains/ndiem"
-	"diablo-benchmark/blockchains/nethereum"
 	"compress/gzip"
 	"fmt"
 	"encoding/json"
@@ -18,6 +13,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"diablo/core"
+	"diablo/blockchains/mock"
+	"diablo/blockchains/nalgorand"
+	"diablo/blockchains/ndiem"
+	"diablo/blockchains/nethereum"
 )
 
 

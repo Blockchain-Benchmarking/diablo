@@ -5,9 +5,10 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
-	"diablo-benchmark/core"
 	"fmt"
 	"time"
+
+	"diablo/core"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"

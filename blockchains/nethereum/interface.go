@@ -4,17 +4,18 @@ package nethereum
 import (
 	"context"
 	"crypto/ecdsa"
-	"diablo-benchmark/core"
 	"encoding/hex"
 	"fmt"
 	"os"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"diablo/core"
 
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+
+	"gopkg.in/yaml.v3"
 )
 
 

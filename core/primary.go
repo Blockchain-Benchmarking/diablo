@@ -6,12 +6,13 @@
 package core
 
 import (
-	"diablo-benchmark/blockchains/workloadgenerators"
-	"diablo-benchmark/communication"
-	"diablo-benchmark/core/configs"
-	"diablo-benchmark/core/results"
 	"fmt"
 	"time"
+
+	"diablo/blockchains/workloadgenerators"
+	"diablo/communication"
+	"diablo/core/configs"
+	"diablo/core/results"
 
 	"go.uber.org/zap"
 )

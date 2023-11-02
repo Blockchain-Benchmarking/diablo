@@ -5,8 +5,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"diablo-benchmark/core/configs"
-	"diablo-benchmark/core/configs/parsers"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -21,6 +19,9 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"diablo/core/configs"
+	"diablo/core/configs/parsers"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"

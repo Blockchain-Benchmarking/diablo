@@ -1,4 +1,4 @@
-module diablo-benchmark
+module diablo
 
 go 1.14
 

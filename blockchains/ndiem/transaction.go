@@ -2,12 +2,13 @@ package ndiem
 
 
 import (
-	"diablo-benchmark/util"
 	"encoding/binary"
 	"fmt"
 	"golang.org/x/crypto/ed25519"
 	"io"
 	"time"
+
+	"diablo/util"
 
 	"github.com/diem/client-sdk-go/diemkeys"
 	"github.com/diem/client-sdk-go/diemsigner"

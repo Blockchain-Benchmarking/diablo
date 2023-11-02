@@ -2,16 +2,17 @@
 package handlers
 
 import (
-	"diablo-benchmark/blockchains/clientinterfaces"
-	"diablo-benchmark/blockchains/workloadgenerators"
-	"diablo-benchmark/core/configs"
-	"diablo-benchmark/core/results"
 	"errors"
 	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"diablo/blockchains/clientinterfaces"
+	"diablo/blockchains/workloadgenerators"
+	"diablo/core/configs"
+	"diablo/core/results"
 
 	"go.uber.org/zap"
 )

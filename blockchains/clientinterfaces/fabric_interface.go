@@ -1,16 +1,17 @@
 package clientinterfaces
 
 import (
-	"diablo-benchmark/blockchains/types"
-	"diablo-benchmark/blockchains/workloadgenerators"
-	"diablo-benchmark/core/configs"
-	"diablo-benchmark/core/results"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sync/atomic"
 	"time"
+
+	"diablo/blockchains/types"
+	"diablo/blockchains/workloadgenerators"
+	"diablo/core/configs"
+	"diablo/core/results"
 
 	"github.com/hyperledger/fabric-sdk-go/pkg/core/config"
 	"github.com/hyperledger/fabric-sdk-go/pkg/gateway"

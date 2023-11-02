@@ -8,8 +8,9 @@
 package workloadgenerators
 
 import (
-	"diablo-benchmark/core/configs"
 	"math/big"
+
+	"diablo/core/configs"
 )
 
 // Workload definitions for ease of use: [secondary][worker][time][txlist][txbytes]

@@ -5,8 +5,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"diablo-benchmark/core"
-	"diablo-benchmark/util"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -14,6 +12,9 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"diablo/core"
+	"diablo/util"
 
 	"github.com/algorand/go-algorand-sdk/client/v2/algod"
 	"github.com/algorand/go-algorand-sdk/client/v2/common/models"
