@@ -1,6 +1,0 @@
-name: "solana"
-nodes:
-  - 127.0.0.1:8899
-window: 3
-extra:
-  - "./scripts/sample/accounts.yml"

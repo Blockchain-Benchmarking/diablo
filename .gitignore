@@ -1,9 +1,3 @@
-.idea
-primary_diablo.log
-secondary_diablo.log
-localImplementation/application-go/wallet/
-localImplementation/log.txt
-localImplementation/*.tar.gz
+.config/
+.go/
 diablo
-
-wallet/
