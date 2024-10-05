@@ -1,0 +1,94 @@
+let:
+
+  - !loop &account
+    sample: !account
+      number: 130
+      stake: 1000000000
+
+  - !loop &local     { sample: !location [ "local"     ]  }
+
+  - !loop &e-local     { sample: !endpoint [ "local"     ] }
+
+  - &tps { sample: !float { from: 100, to: 101 } }
+
+workloads:
+
+  - number: 1
+    client:
+      location: *local
+      view: *e-local
+      behavior:
+        - interaction: !transfer { from: *account, to: *account }
+          load: { 0: *tps, 120: 0 }
+
+  - number: 1
+    client:
+      location: *local
+      view: *e-local
+      behavior:
+        - interaction: !transfer { from: *account, to: *account }
+          load: { 0: *tps, 120: 0 }
+
+  - number: 1
+    client:
+      location: *local
+      view: *e-local
+      behavior:
+        - interaction: !transfer { from: *account, to: *account }
+          load: { 0: *tps, 120: 0 }
+
+  - number: 1
+    client:
+      location: *local
+      view: *e-local
+      behavior:
+        - interaction: !transfer { from: *account, to: *account }
+          load: { 0: *tps, 120: 0 }
+
+  - number: 1
+    client:
+      location: *local
+      view: *e-local
+      behavior:
+        - interaction: !transfer { from: *account, to: *account }
+          load: { 0: *tps, 120: 0 }
+
+  - number: 1
+    client:
+      location: *local
+      view: *e-local
+      behavior:
+        - interaction: !transfer { from: *account, to: *account }
+          load: { 0: *tps, 120: 0 }
+
+  - number: 1
+    client:
+      location: *local
+      view: *e-local
+      behavior:
+        - interaction: !transfer { from: *account, to: *account }
+          load: { 0: *tps, 120: 0 }
+
+  - number: 1
+    client:
+      location: *local
+      view: *e-local
+      behavior:
+        - interaction: !transfer { from: *account, to: *account }
+          load: { 0: *tps, 120: 0 }
+
+  - number: 1
+    client:
+      location: *local
+      view: *e-local
+      behavior:
+        - interaction: !transfer { from: *account, to: *account }
+          load: { 0: *tps, 120: 0 }
+
+  - number: 1
+    client:
+      location: *local
+      view: *e-local
+      behavior:
+        - interaction: !transfer { from: *account, to: *account }
+          load: { 0: *tps, 120: 0 }

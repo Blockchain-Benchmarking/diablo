@@ -1,0 +1,9 @@
+interface: "ethereum"
+parameters:
+endpoints:
+  - addresses:
+      - "127.0.0.1:9000"
+      - "127.0.0.1:9001"
+      - "127.0.0.1:9002"
+    tags:
+      - "local"
