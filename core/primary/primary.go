@@ -1,9 +1,11 @@
-package core
+package primary
 
 import (
+	"diablo/core"
 	"diablo/core/logging"
+	"diablo/core/primary/coordinator"
 	"diablo/core/remote"
-	"diablo/core/workload"
+	"diablo/core/user"
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"net"
@@ -13,15 +15,15 @@ import (
 
 type Primary struct {
 	NumSecondary int
-	Setup        setup
-	Accounts     []workload.Account
+	Setup        core.Setup
+	Accounts     []user.Account
 	ListenPort   int
-	Coordinator  workload.Coordinator
+	Coordinator  coordinator.Coordinator
 }
 
 func NewPrimary(port int, secondary int, setupPath string, accountsPath string) (*Primary, error) {
 	logging.Debugf("parse setup file '%s'", setupPath)
-	newSetup, err := parseSetupYamlPath(setupPath)
+	newSetup, err := core.ParseSetupYamlPath(setupPath)
 	if err != nil {
 		return nil, err
 	}
@@ -31,13 +33,13 @@ func NewPrimary(port int, secondary int, setupPath string, accountsPath string) 
 		return nil, err
 	}
 
-	var accounts []workload.Account
+	var accounts []user.Account
 	err = yaml.Unmarshal(accBytes, &accounts)
 	if err != nil {
 		return nil, err
 	}
 
-	logging.Debugf("using interface '%s'", newSetup.sysname())
+	logging.Debugf("using interface '%s'", newSetup.Sysname())
 
 	return &Primary{
 		NumSecondary: secondary,
@@ -47,7 +49,7 @@ func NewPrimary(port int, secondary int, setupPath string, accountsPath string) 
 	}, nil
 }
 
-func (p *Primary) Run() (workload.Results, error) {
+func (p *Primary) Run() (user.Results, error) {
 	//accept secondary connections
 	logging.Debugf("wait for %d secondary connections", p.NumSecondary)
 	secondaries, err := p.acceptSecondaries()
@@ -57,7 +59,7 @@ func (p *Primary) Run() (workload.Results, error) {
 
 	logging.Debugf("send workload")
 	//Coordinator sends workload to secondaries
-	p.Coordinator = workload.NewSimpleCoordinator(secondaries, p.Accounts) //TODO replace generic coordinator
+	p.Coordinator = coordinator.NewSimpleCoordinator(secondaries, p.Accounts) //TODO replace generic coordinator
 	err = p.Coordinator.SendWorkload()
 	if err != nil {
 		return nil, err
@@ -136,7 +138,7 @@ func (p *Primary) acceptSecondaries() ([]*remote.Secondary, error) {
 		raddr = conn.RemoteAddr().String()
 		logging.Debugf("new secondary connection from %s", raddr)
 
-		remoteSecondaries[i], err = remote.NewRemoteSecondary(conn, p.Setup.sysname(), p.Setup.parameters())
+		remoteSecondaries[i], err = remote.NewRemoteSecondary(conn, p.Setup.Sysname(), p.Setup.Parameters())
 		if err != nil {
 			conn.Close()
 			return nil, err

@@ -2,14 +2,13 @@ package remote
 
 import (
 	"bufio"
-	"diablo/core/messaging"
 	"fmt"
 	"net"
 )
 
 type Secondary struct {
 	conn   *secondaryConn
-	params *messaging.MsgSecondaryParameters
+	params *MsgSecondaryParameters
 }
 
 func NewRemoteSecondary(conn net.Conn, sysname string, params map[string]string) (*Secondary, error) {
@@ -18,7 +17,7 @@ func NewRemoteSecondary(conn net.Conn, sysname string, params map[string]string)
 
 	secondary.conn = newSecondaryConn(conn)
 
-	secondary.params, err = secondary.conn.init(&messaging.MsgPrimaryParameters{
+	secondary.params, err = secondary.conn.init(&MsgPrimaryParameters{
 		Sysname:     sysname,
 		ChainParams: params,
 	})
@@ -41,7 +40,7 @@ func (s *Secondary) Ready() error {
 }
 
 func (s *Secondary) Start(duration float64) error {
-	return s.conn.sendStart(&messaging.MsgStart{
+	return s.conn.sendStart(&MsgStart{
 		Duration: duration,
 	})
 }
@@ -76,7 +75,7 @@ func newSecondaryConn(conn net.Conn) *secondaryConn {
 	}
 }
 
-func (s *secondaryConn) init(fromPrimary *messaging.MsgPrimaryParameters) (*messaging.MsgSecondaryParameters, error) {
+func (s *secondaryConn) init(fromPrimary *MsgPrimaryParameters) (*MsgSecondaryParameters, error) {
 	var err error
 
 	err = fromPrimary.Encode(s.writer)
@@ -89,13 +88,13 @@ func (s *secondaryConn) init(fromPrimary *messaging.MsgPrimaryParameters) (*mess
 		return nil, err
 	}
 
-	return messaging.DecodeMsgSecondaryParameters(s.reader)
+	return DecodeMsgSecondaryParameters(s.reader)
 }
 
 func (s *secondaryConn) syncReady() error {
 	var err error
 
-	msg := &messaging.MsgPrepareDone{
+	msg := &MsgPrepareDone{
 		Ready: false,
 	}
 	err = msg.Encode(s.writer)
@@ -108,7 +107,7 @@ func (s *secondaryConn) syncReady() error {
 		return err
 	}
 
-	ready, err := messaging.DecodeMsgPrepareDone(s.reader)
+	ready, err := DecodeMsgPrepareDone(s.reader)
 	if err != nil {
 		return err
 	}
@@ -120,7 +119,7 @@ func (s *secondaryConn) syncReady() error {
 	return nil
 }
 
-func (s *secondaryConn) sendStart(fromPrimary *messaging.MsgStart) error {
+func (s *secondaryConn) sendStart(fromPrimary *MsgStart) error {
 	var err error
 
 	err = fromPrimary.Encode(s.writer)

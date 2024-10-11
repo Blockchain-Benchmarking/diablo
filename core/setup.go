@@ -5,51 +5,51 @@ import (
 	"os"
 )
 
-// Parsed setup file.
+// Parsed Setup file.
 // Describe what is the tested system and how it is deployed.
-type setup interface {
+type Setup interface {
 	// Return the name of the tested system.
 	//
-	sysname() string
+	Sysname() string
 
 	// Return the blockchain client parameters.
 	//
-	parameters() map[string]string
+	Parameters() map[string]string
 
 	// Return the set of the endpoints of the tested system.
 	//
-	endpoints() []endpoint
+	Endpoints() []Endpoint
 }
 
 // An access point to the tested system.
-// Describe an endpoint to connect to in order to communicate with the tested
+// Describe an Endpoint to connect to in order to communicate with the tested
 // system. This is typically the TCP/IP address of a blockchain node.
-type endpoint interface {
-	// Return the address of this endpoint.
-	// The returned address is as specified by the user in the setup
+type Endpoint interface {
+	// Return the address of this Endpoint.
+	// The returned address is as specified by the user in the Setup
 	// configuration file.
 	//
 	address() string
 
-	// Return a list of tags associated with this endpoint.
+	// Return a list of tags associated with this Endpoint.
 	//
 	tags() []string
 }
 
-type setupConfig struct {
+type SetupConfig struct {
 	Sysname    string             `yaml:"interface"`
 	Parameters map[string]string  `yaml:"parameters"`
-	Endpoints  []setupGroupConfig `yaml:"endpoints"`
+	Endpoints  []SetupGroupConfig `yaml:"endpoints"`
 }
 
-type setupGroupConfig struct {
+type SetupGroupConfig struct {
 	Addresses []string `yaml:"addresses"`
 	Tags      []string `yaml:"tags"`
 }
 
-func parseSetupYamlPath(path string) (setup, error) {
+func ParseSetupYamlPath(path string) (Setup, error) {
 	var decoder *yaml.Decoder
-	var config setupConfig
+	var config SetupConfig
 	var file *os.File
 	var err error
 
@@ -70,8 +70,8 @@ func parseSetupYamlPath(path string) (setup, error) {
 	return buildParsedSetup(&config), nil
 }
 
-func buildParsedSetup(config *setupConfig) *parsedSetup {
-	var eps []endpoint
+func buildParsedSetup(config *SetupConfig) *parsedSetup {
+	var eps []Endpoint
 	var addr string
 	var i, nep int
 
@@ -80,7 +80,7 @@ func buildParsedSetup(config *setupConfig) *parsedSetup {
 		nep += len(config.Endpoints[i].Addresses)
 	}
 
-	eps = make([]endpoint, 0, nep)
+	eps = make([]Endpoint, 0, nep)
 	for i = range config.Endpoints {
 		for _, addr = range config.Endpoints[i].Addresses {
 			eps = append(eps, newParsedEndpoint(addr,
@@ -94,10 +94,10 @@ func buildParsedSetup(config *setupConfig) *parsedSetup {
 type parsedSetup struct {
 	_sysname    string
 	_parameters map[string]string
-	_endpoints  []endpoint
+	_endpoints  []Endpoint
 }
 
-func newParsedSetup(sysname string, parameters map[string]string, endpoints []endpoint) *parsedSetup {
+func newParsedSetup(sysname string, parameters map[string]string, endpoints []Endpoint) *parsedSetup {
 	return &parsedSetup{
 		_sysname:    sysname,
 		_parameters: parameters,
@@ -105,15 +105,15 @@ func newParsedSetup(sysname string, parameters map[string]string, endpoints []en
 	}
 }
 
-func (this *parsedSetup) sysname() string {
+func (this *parsedSetup) Sysname() string {
 	return this._sysname
 }
 
-func (this *parsedSetup) parameters() map[string]string {
+func (this *parsedSetup) Parameters() map[string]string {
 	return this._parameters
 }
 
-func (this *parsedSetup) endpoints() []endpoint {
+func (this *parsedSetup) Endpoints() []Endpoint {
 	return this._endpoints
 }
 

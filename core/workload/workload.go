@@ -1,6 +1,9 @@
 package workload
 
-import "io"
+import (
+	"diablo/core/user"
+	"io"
+)
 
 type Workload interface {
 	Encode(dest io.Writer) error
@@ -8,5 +11,5 @@ type Workload interface {
 }
 
 type PaymentWorkload struct {
-	Users []User
+	Users []user.User
 }

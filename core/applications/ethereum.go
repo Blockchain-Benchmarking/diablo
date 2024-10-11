@@ -1,4 +1,4 @@
-package blockchains
+package applications
 
 import (
 	"context"
@@ -14,9 +14,6 @@ import (
 	"strconv"
 	"time"
 )
-
-type BlockchainInterface struct {
-}
 
 // ethereum transfer
 func Transfer(client *ethclient.Client, addressBytes string, privateKeyBytes string, to string, amount float64) error {

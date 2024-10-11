@@ -1,9 +1,9 @@
-package core
+package secondary
 
 import (
 	"diablo/core/logging"
-	"diablo/core/messaging"
 	"diablo/core/remote"
+	"diablo/core/secondary/generator"
 	"diablo/core/workload"
 	"fmt"
 	"net"
@@ -15,7 +15,7 @@ type Secondary struct {
 	Tags        []string
 
 	PrimaryConn   *remote.PrimaryConn
-	PrimaryParams *messaging.MsgPrimaryParameters
+	PrimaryParams *remote.MsgPrimaryParameters
 }
 
 func NewSecondary(primary string, port int, tags []string) (*Secondary, error) {
@@ -39,7 +39,7 @@ func (s *Secondary) Run() error {
 	s.PrimaryConn = remote.NewPrimaryConn(conn)
 
 	logging.Debugf("send secondary parameters")
-	s.PrimaryParams, err = s.PrimaryConn.Init(&messaging.MsgSecondaryParameters{
+	s.PrimaryParams, err = s.PrimaryConn.Init(&remote.MsgSecondaryParameters{
 		Tags: s.Tags,
 	})
 
@@ -57,8 +57,8 @@ func (s *Secondary) Run() error {
 
 	//create users
 	//TODO use interface
-	var generator workload.Generator
-	generator, err = workload.NewSimpleGenerator(s.PrimaryConn, wk, 5*time.Minute) //TODO
+	var gen generator.Generator
+	gen, err = generator.NewSimpleGenerator(s.PrimaryConn, wk, 5*time.Minute) //TODO
 	if err != nil {
 		return err
 	}
@@ -76,13 +76,13 @@ func (s *Secondary) Run() error {
 	}
 
 	//start generator
-	err = generator.Start()
+	err = gen.Start()
 	if err != nil {
 		return err
 	}
 
 	//send results to primary
-	results, err := generator.CollectResults()
+	results, err := gen.CollectResults()
 	if err != nil {
 		return err
 	}

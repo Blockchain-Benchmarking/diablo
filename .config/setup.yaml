@@ -1,4 +1,7 @@
 interface: "ethereum"
+application: "payment"
+user: "stubborn"
+workload: "simple/dynamic"
 parameters:
 endpoints:
   - addresses:

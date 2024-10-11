@@ -1,21 +1,19 @@
-package workload
+package coordinator
 
 import (
 	"diablo/core/logging"
 	"diablo/core/remote"
+	"diablo/core/user"
+	"diablo/core/workload"
 	"fmt"
 )
 
-var coordinators = map[string]interface{}{
-	"simple": &SimpleCoordinator{},
-}
-
 type SimpleCoordinator struct {
 	secondaries []*remote.Secondary
-	accounts    []Account
+	accounts    []user.Account
 }
 
-func NewSimpleCoordinator(secondaries []*remote.Secondary, accounts []Account) *SimpleCoordinator {
+func NewSimpleCoordinator(secondaries []*remote.Secondary, accounts []user.Account) *SimpleCoordinator {
 	return &SimpleCoordinator{
 		secondaries: secondaries,
 		accounts:    accounts,
@@ -24,17 +22,17 @@ func NewSimpleCoordinator(secondaries []*remote.Secondary, accounts []Account) *
 
 func (s *SimpleCoordinator) SendWorkload() error {
 	logging.Debugf("sending workload")
-	workload := UserInfoWorkload{UserInfos: make([]UserInfo, len(s.accounts))}
+	wk := workload.UserInfoWorkload{UserInfos: make([]user.UserInfo, len(s.accounts))}
 	for i, account := range s.accounts {
-		workload.UserInfos[i] = UserInfo{
+		wk.UserInfos[i] = user.UserInfo{
 			Account:   account,
 			Frequency: 1,
 		}
 	}
 
-	logging.Debugf("encoding workload with %d users", len(workload.UserInfos))
+	logging.Debugf("encoding workload with %d users", len(wk.UserInfos))
 	//TODO share between secondaries
-	err := workload.Encode(s.secondaries[0].Writer())
+	err := wk.Encode(s.secondaries[0].Writer())
 	if err != nil {
 		return fmt.Errorf("failed to encode workload: %w", err)
 	}
@@ -42,11 +40,11 @@ func (s *SimpleCoordinator) SendWorkload() error {
 	return nil
 }
 
-func (s *SimpleCoordinator) CollectResults() Results {
-	finalResults := &SimpleResult{}
+func (s *SimpleCoordinator) CollectResults() user.Results {
+	finalResults := &user.SimpleResult{}
 
 	for _, sec := range s.secondaries {
-		res := &SimpleResult{}
+		res := &user.SimpleResult{}
 
 		err := res.Decode(sec.Reader())
 		if err != nil {

@@ -6,6 +6,7 @@ package cmd
 import (
 	"compress/gzip"
 	"diablo/core"
+	"diablo/core/primary"
 	"github.com/spf13/cobra"
 	"io"
 	"os"
@@ -31,7 +32,7 @@ var primaryCmd = &cobra.Command{
 		err := validatePort(port)
 		cobra.CheckErr(err)
 
-		primary, err := core.NewPrimary(port, secondaries, setupFile, accountsFile)
+		p, err := primary.NewPrimary(port, secondaries, setupFile, accountsFile)
 		cobra.CheckErr(err)
 
 		if outputFile != "" {
@@ -52,7 +53,7 @@ var primaryCmd = &cobra.Command{
 			defer output.Close()
 		}
 
-		result, err := primary.Run()
+		result, err := p.Run()
 		cobra.CheckErr(err)
 
 		err = result.PrintResult(output)

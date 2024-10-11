@@ -2,7 +2,6 @@ package remote
 
 import (
 	"bufio"
-	"diablo/core/messaging"
 	"fmt"
 	"net"
 )
@@ -21,11 +20,11 @@ func NewPrimaryConn(conn net.Conn) *PrimaryConn {
 	}
 }
 
-func (p *PrimaryConn) Init(fromSecondary *messaging.MsgSecondaryParameters) (*messaging.MsgPrimaryParameters, error) {
-	var fromPrimary *messaging.MsgPrimaryParameters
+func (p *PrimaryConn) Init(fromSecondary *MsgSecondaryParameters) (*MsgPrimaryParameters, error) {
+	var fromPrimary *MsgPrimaryParameters
 	var err error
 
-	fromPrimary, err = messaging.DecodeMsgPrimaryParameters(p.reader)
+	fromPrimary, err = DecodeMsgPrimaryParameters(p.reader)
 	if err != nil {
 		return nil, err
 	}
@@ -51,8 +50,8 @@ func (p *PrimaryConn) Reader() *bufio.Reader {
 	return p.reader
 }
 
-func (p *PrimaryConn) WaitPrepare() (*messaging.MsgPrepareDone, error) {
-	message, err := messaging.DecodeMsgPrepareDone(p.reader)
+func (p *PrimaryConn) WaitPrepare() (*MsgPrepareDone, error) {
+	message, err := DecodeMsgPrepareDone(p.reader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode prepare done message: %w", err)
 	}
@@ -63,7 +62,7 @@ func (p *PrimaryConn) WaitPrepare() (*messaging.MsgPrepareDone, error) {
 func (p *PrimaryConn) SyncReady() error {
 	var err error
 
-	err = (&messaging.MsgPrepareDone{
+	err = (&MsgPrepareDone{
 		Ready: true,
 	}).Encode(p.writer)
 	if err != nil {
@@ -73,8 +72,8 @@ func (p *PrimaryConn) SyncReady() error {
 	return p.writer.Flush()
 }
 
-func (p *PrimaryConn) WaitStart() (*messaging.MsgStart, error) {
-	return messaging.DecodeMsgStart(p.reader)
+func (p *PrimaryConn) WaitStart() (*MsgStart, error) {
+	return DecodeMsgStart(p.reader)
 }
 
 func (p *PrimaryConn) Close() error {
