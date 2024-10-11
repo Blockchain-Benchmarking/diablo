@@ -1,13 +1,14 @@
 package core
 
 import (
+	"diablo/core/logging"
 	"diablo/core/remote"
-	"diablo/core/result"
 	"diablo/core/workload"
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"net"
 	"os"
+	"strings"
 )
 
 type Primary struct {
@@ -19,7 +20,7 @@ type Primary struct {
 }
 
 func NewPrimary(port int, secondary int, setupPath string, accountsPath string) (*Primary, error) {
-	Debugf("parse setup file '%s'", setupPath)
+	logging.Debugf("parse setup file '%s'", setupPath)
 	newSetup, err := parseSetupYamlPath(setupPath)
 	if err != nil {
 		return nil, err
@@ -36,7 +37,7 @@ func NewPrimary(port int, secondary int, setupPath string, accountsPath string) 
 		return nil, err
 	}
 
-	Debugf("using interface '%s'", newSetup.sysname())
+	logging.Debugf("using interface '%s'", newSetup.sysname())
 
 	return &Primary{
 		NumSecondary: secondary,
@@ -46,24 +47,27 @@ func NewPrimary(port int, secondary int, setupPath string, accountsPath string) 
 	}, nil
 }
 
-func (p *Primary) Run() (result.Result, error) {
+func (p *Primary) Run() (workload.Results, error) {
 	//accept secondary connections
-	Debugf("wait for %d secondary connections", p.NumSecondary)
+	logging.Debugf("wait for %d secondary connections", p.NumSecondary)
 	secondaries, err := p.acceptSecondaries()
 	if err != nil {
 		return nil, err
 	}
 
+	logging.Debugf("send workload")
 	//Coordinator sends workload to secondaries
-	p.Coordinator = workload.New(secondaries, p.Accounts)
+	p.Coordinator = workload.NewSimpleCoordinator(secondaries, p.Accounts) //TODO replace generic coordinator
 	err = p.Coordinator.SendWorkload()
 	if err != nil {
 		return nil, err
 	}
 
+	logging.Debugf("workload sent to secondaries")
+
 	//wait for secondaries to ack they are ready
 	for i := range secondaries {
-		Tracef("wait for secondary %s", secondaries[i].Addr())
+		logging.Tracef("wait for secondary %s", secondaries[i].Addr())
 		err := secondaries[i].Ready()
 		if err != nil {
 			return nil, err
@@ -71,9 +75,9 @@ func (p *Primary) Run() (result.Result, error) {
 	}
 
 	//send start signal
-	Infof("start benchmark")
+	logging.Infof("start benchmark")
 	for i := range secondaries {
-		Tracef("send start signal to %s", secondaries[i].Addr())
+		logging.Tracef("send start signal to %s", secondaries[i].Addr())
 		err := secondaries[i].Start(100000) //TODO
 		if err != nil {
 			return nil, err
@@ -81,13 +85,11 @@ func (p *Primary) Run() (result.Result, error) {
 	}
 
 	//Coordinator collects results
-	p.Coordinator.CollectResults()
-
-	return nil, nil
+	return p.Coordinator.CollectResults(), nil
 }
 
 func (p *Primary) acceptSecondaries() ([]*remote.Secondary, error) {
-	var laddr, raddr, tag string
+	var laddr, raddr string
 	var remoteSecondaries []*remote.Secondary
 	var listener net.Listener
 	var conn net.Conn
@@ -98,7 +100,7 @@ func (p *Primary) acceptSecondaries() ([]*remote.Secondary, error) {
 	laddr = fmt.Sprintf("0.0.0.0:%d", p.ListenPort)
 	remoteSecondaries = make([]*remote.Secondary, p.NumSecondary)
 
-	Debugf("listen for %d secondary connections on %s", len(remoteSecondaries), laddr)
+	logging.Debugf("listen for %d secondary connections on %s", len(remoteSecondaries), laddr)
 	listener, err = net.Listen("tcp", laddr)
 	if err != nil {
 		return nil, err
@@ -107,7 +109,7 @@ func (p *Primary) acceptSecondaries() ([]*remote.Secondary, error) {
 	done = false
 
 	defer func() {
-		Debugf("close listener on %s", laddr)
+		logging.Debugf("close listener on %s", laddr)
 		listener.Close()
 
 		if done {
@@ -119,20 +121,20 @@ func (p *Primary) acceptSecondaries() ([]*remote.Secondary, error) {
 				continue
 			}
 
-			Debugf("close connection from %s", remoteSecondaries[i].Addr())
+			logging.Debugf("close connection from %s", remoteSecondaries[i].Addr())
 			remoteSecondaries[i].Close()
 		}
 	}()
 
 	for i = range remoteSecondaries {
-		Tracef("wait for connection on %s", laddr)
+		logging.Tracef("wait for connection on %s", laddr)
 		conn, err = listener.Accept()
 		if err != nil {
 			return nil, err
 		}
 
 		raddr = conn.RemoteAddr().String()
-		Debugf("new secondary connection from %s", raddr)
+		logging.Debugf("new secondary connection from %s", raddr)
 
 		remoteSecondaries[i], err = remote.NewRemoteSecondary(conn, p.Setup.sysname(), p.Setup.parameters())
 		if err != nil {
@@ -140,10 +142,7 @@ func (p *Primary) acceptSecondaries() ([]*remote.Secondary, error) {
 			return nil, err
 		}
 
-		Tracef("secondary %s tags:", raddr)
-		for _, tag = range remoteSecondaries[i].Tags() {
-			Tracef("  %s", tag)
-		}
+		logging.Tracef("secondary %s tags: [%s]", raddr, strings.Join(remoteSecondaries[i].Tags(), ", "))
 	}
 
 	done = true

@@ -5,8 +5,6 @@ package cmd
 
 import (
 	"diablo/core"
-	"fmt"
-
 	"github.com/spf13/cobra"
 )
 
@@ -21,24 +19,22 @@ var secondaryCmd = &cobra.Command{
 	Long: `Launch a Diablo secondary node to run the benchmark following the
     directives of the Diablo primary node at the specified <primary> address.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		setVerbosity(verbosity)
+		core.SetVerbosity(verbosity)
 		err := validatePort(secondaryConnectPort)
 		cobra.CheckErr(err)
 
-		secondary, err := core.NewSecondary(primary, port, tags)
+		secondary, err := core.NewSecondary(primary, secondaryConnectPort, tags)
 		cobra.CheckErr(err)
 
 		err = secondary.Run()
 		cobra.CheckErr(err)
-
-		fmt.Println("secondary called")
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(secondaryCmd)
 
-	primaryCmd.Flags().StringSliceVarP(&tags, "tags", "t", nil, "Attach given tags to the node.")
-	primaryCmd.Flags().IntVarP(&secondaryConnectPort, "port", "p", PORT_DEFAULT, "Port to connect to the Diablo primary node on.")
-	primaryCmd.Flags().StringVar(&primary, "primary", "127.0.0.1", "Primary address.")
+	secondaryCmd.Flags().IntVarP(&secondaryConnectPort, "port", "p", PORT_DEFAULT, "Port to listen for Diablo secondary nodes on.")
+	secondaryCmd.Flags().StringSliceVarP(&tags, "tags", "t", nil, "Attach given tags to the node.")
+	secondaryCmd.Flags().StringVar(&primary, "primary", "127.0.0.1", "Primary address.")
 }

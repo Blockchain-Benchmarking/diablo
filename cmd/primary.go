@@ -6,14 +6,13 @@ package cmd
 import (
 	"compress/gzip"
 	"diablo/core"
-	"fmt"
 	"github.com/spf13/cobra"
 	"io"
 	"os"
 	"strings"
 )
 
-var compress, stat bool
+var compress bool
 var outputFile, setupFile string
 var port, secondaries int
 var application, workload, user string
@@ -28,7 +27,7 @@ var primaryCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var output io.WriteCloser
 
-		setVerbosity(verbosity)
+		core.SetVerbosity(verbosity)
 		err := validatePort(port)
 		cobra.CheckErr(err)
 
@@ -56,13 +55,8 @@ var primaryCmd = &cobra.Command{
 		result, err := primary.Run()
 		cobra.CheckErr(err)
 
-		result.PrintResult(output)
-
-		if stat {
-			result.PrintStat()
-		}
-
-		fmt.Println("primary called")
+		err = result.PrintResult(output)
+		cobra.CheckErr(err)
 	},
 }
 
@@ -75,7 +69,6 @@ func init() {
 		"printing on standard output.")
 	primaryCmd.Flags().StringVar(&setupFile, "setup", "", "setup file")
 	primaryCmd.Flags().IntVarP(&port, "port", "p", PORT_DEFAULT, "Port to listen for Diablo secondary nodes on.")
-	primaryCmd.Flags().BoolVar(&stat, "stat", false, "print result statistics on standard output")
 
 	primaryCmd.Flags().IntVar(&secondaries, "secondaries", 0, "number of secondaries")
 
