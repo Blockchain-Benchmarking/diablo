@@ -6,7 +6,6 @@ package cmd
 import (
 	"compress/gzip"
 	"diablo/core"
-	"diablo/core/primary"
 	"github.com/spf13/cobra"
 	"io"
 	"os"
@@ -29,10 +28,8 @@ var primaryCmd = &cobra.Command{
 		var output io.WriteCloser
 
 		core.SetVerbosity(verbosity)
-		err := validatePort(port)
-		cobra.CheckErr(err)
 
-		p, err := primary.NewPrimary(port, secondaries, setupFile, accountsFile)
+		p, err := core.NewPrimary(port, secondaries, setupFile, accountsFile)
 		cobra.CheckErr(err)
 
 		if outputFile != "" {

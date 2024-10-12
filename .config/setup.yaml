@@ -1,8 +1,7 @@
 interface: "ethereum"
 application: "payment"
 user: "stubborn"
-workload: "simple/dynamic"
-parameters:
+workload: "simple"
 endpoints:
   - addresses:
       - "127.0.0.1:9000"
