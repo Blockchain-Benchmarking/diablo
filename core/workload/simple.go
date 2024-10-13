@@ -113,7 +113,6 @@ func (g *SimpleGenerator) Start() error {
 
 // CollectResults implements Generator
 func (g *SimpleGenerator) CollectResults() (user.Results, error) {
-	//TODO implement me
 	logging.Infof("waiting for users to finish executing")
 	g.wg.Wait()
 	close(g.results)

@@ -119,17 +119,17 @@ func (s *StubbornUser) executeTransaction(action *Action) {
 		}
 
 		params := map[string]interface{}{
-			"to":     to,
-			"amount": amount,
+			"to":      to,
+			"amount":  amount,
+			"timeout": s.Timeout,
 		}
 
 		err = s.Execute(params)
 		if err == nil {
 			action.SuccessTime = time.Now().Unix()
 			return
-		} else {
-			panic(err)
 		}
+
 		action.Retries++
 	}
 

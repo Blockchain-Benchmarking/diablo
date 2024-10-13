@@ -20,7 +20,7 @@ var PaymentBlockchains = map[string]func(params map[string]interface{}) (Payment
 }
 
 type PaymentBlockchain interface {
-	Transfer(to string, amount float64) error
+	Transfer(to string, amount float64, timeout time.Duration) error
 }
 
 type PaymentApp struct {
@@ -65,7 +65,12 @@ func (p *PaymentApp) Execute(params map[string]interface{}) error {
 		return fmt.Errorf("missing or invalid parameter \"amount\"")
 	}
 
-	return p.blockchain.Transfer(to, amount)
+	timeout, ok := params["timeout"].(time.Duration)
+	if !ok {
+		return fmt.Errorf("missing or invalid parameter \"timeout\"")
+	}
+
+	return p.blockchain.Transfer(to, amount, timeout)
 }
 
 type Ethereum struct {
@@ -104,7 +109,7 @@ func NewEthereum(params map[string]interface{}) (PaymentBlockchain, error) {
 }
 
 // Transfer implements PaymentBlockchain
-func (e *Ethereum) Transfer(to string, amount float64) error {
+func (e *Ethereum) Transfer(to string, amount float64, timeout time.Duration) error {
 	logging.Infof("transfering %f from %s to %s", amount, e.address, to)
 	privateKey, err := crypto.HexToECDSA(e.privateKey)
 	if err != nil {
@@ -158,14 +163,12 @@ func (e *Ethereum) Transfer(to string, amount float64) error {
 	}
 
 	hash := signedTx.Hash()
-	timeout := 2 * time.Minute
 	start := time.Now()
 
 	logging.Infof("waiting for receipt " + hash.String())
 
-	//TODO
 	for {
-		time.Sleep(1 * time.Second)
+		time.Sleep(time.Millisecond)
 
 		receipt, err := e.client.TransactionReceipt(context.Background(), hash)
 		if err == nil {
