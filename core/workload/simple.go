@@ -1,9 +1,9 @@
 package workload
 
 import (
+	"diablo/core/behavior"
 	"diablo/core/logging"
 	"diablo/core/remote"
-	"diablo/core/user"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -12,20 +12,23 @@ import (
 )
 
 type SimpleCoordinator struct {
-	secondaries []*remote.Secondary
-	accounts    []user.Account
-	userType    string
-	app         string
-	blockchain  string
+	secondaries     []*remote.Secondary
+	accounts        []behavior.Account
+	userType        string
+	app             string
+	blockchain      string
+	userParams      map[string]interface{}
+	emptyResultsGen func() behavior.Results
 }
 
-func NewSimpleCoordinator(secondaries []*remote.Secondary, accounts []user.Account, userType string, app string, blockchain string) Coordinator {
+func NewSimpleCoordinator(secondaries []*remote.Secondary, accounts []behavior.Account, userType string, app string, blockchain string, params map[string]interface{}) Coordinator {
 	return &SimpleCoordinator{
 		secondaries: secondaries,
 		accounts:    accounts,
 		userType:    userType,
 		app:         app,
 		blockchain:  blockchain,
+		userParams:  params,
 	}
 }
 
@@ -35,14 +38,23 @@ func (s *SimpleCoordinator) SendWorkload() error {
 
 	logging.Infof("initialize workload")
 
-	addresses := make([]string, len(s.accounts))
-	for i, account := range s.accounts {
-		addresses[i] = account.Address
+	//Get specific user initializer
+	userTools := Users[s.userType]
+	s.emptyResultsGen = userTools.EmptyResults
+
+	var addresses []string
+	for _, acc := range s.accounts {
+		addresses = append(addresses, acc.Address)
 	}
 
 	var err error
-	for i, account := range s.accounts {
-		wk[i], err = Users[s.userType](account, addresses, s.app, s.blockchain)
+	for i, acc := range s.accounts {
+		wk[i], err = userTools.Init(s.blockchain, behavior.Config{
+			Endpoint:   "ws://127.0.0.1:9000",
+			Addresses:  addresses,
+			PrivateKey: acc.PrivateKey,
+			Address:    acc.Address,
+		}, s.userParams)
 		if err != nil {
 			return fmt.Errorf("failed to create user: %w", err)
 		}
@@ -58,22 +70,18 @@ func (s *SimpleCoordinator) SendWorkload() error {
 }
 
 // CollectResults implements Coordinator
-func (s *SimpleCoordinator) CollectResults() user.Results {
-	finalResults := &user.SimpleResult{}
+func (s *SimpleCoordinator) CollectResults() behavior.Results {
+	finalResults := s.emptyResultsGen()
 
 	for _, sec := range s.secondaries {
-		res := &user.SimpleResult{}
+		res := s.emptyResultsGen()
 
 		err := res.Decode(sec.Reader())
 		if err != nil {
 			logging.Errorf("failed to receive results from sec: %s", err.Error())
 		}
 
-		if res == nil {
-			logging.Errorf("received nil results from sec")
-		}
-
-		finalResults = finalResults.Merge(res).(*user.SimpleResult)
+		finalResults = finalResults.Merge(res)
 	}
 
 	return finalResults
@@ -81,9 +89,9 @@ func (s *SimpleCoordinator) CollectResults() user.Results {
 
 type SimpleGenerator struct {
 	primary *remote.PrimaryConn
-	users   []user.User
+	users   []behavior.User
 	wg      *sync.WaitGroup
-	results chan interface{}
+	results chan behavior.Results
 	timeout time.Duration
 }
 
@@ -97,7 +105,7 @@ func NewSimpleGenerator(primary *remote.PrimaryConn, wk Workload, timeout time.D
 		primary,
 		*simpleWk,
 		&sync.WaitGroup{},
-		make(chan interface{}, len(*simpleWk)),
+		make(chan behavior.Results, len(*simpleWk)),
 		timeout}, nil
 }
 
@@ -112,31 +120,40 @@ func (g *SimpleGenerator) Start() error {
 }
 
 // CollectResults implements Generator
-func (g *SimpleGenerator) CollectResults() (user.Results, error) {
+func (g *SimpleGenerator) CollectResults() (behavior.Results, error) {
 	logging.Infof("waiting for users to finish executing")
 	g.wg.Wait()
 	close(g.results)
 	logging.Infof("users finished executing")
 
-	var results user.SimpleResult
+	var results behavior.Results
+
 	for res := range g.results {
-		logging.Infof("received results")
-		if userResult, ok := res.(user.SingleUserResult); ok {
-			results = append(results, userResult)
-		} else {
-			logging.Warnf("unknown result type received")
+		if results == nil {
+			results = res
+			continue
+		}
+
+		if res != nil {
+			logging.Infof("merging results")
+			results = results.Merge(res)
 		}
 	}
 
-	return &results, nil
+	return results, nil
 }
 
-type SimpleWorkload []user.User
+type SimpleWorkload []behavior.User
 
 // Encode implements Workload
 func (w *SimpleWorkload) Encode(dest io.Writer) error {
+	err := encodeString(dest, (*w)[0].Name())
+	if err != nil {
+		return fmt.Errorf("failed to encode usertype: %w", err)
+	}
+
 	count := int32(len(*w))
-	err := binary.Write(dest, binary.LittleEndian, count)
+	err = binary.Write(dest, binary.LittleEndian, count)
 	if err != nil {
 		return fmt.Errorf("failed to encode SimpleWorkload count %d: %w", count, err)
 	}
@@ -154,8 +171,18 @@ func (w *SimpleWorkload) Encode(dest io.Writer) error {
 // Decode implements Workload
 func (w *SimpleWorkload) Decode(src io.Reader) error {
 	logging.Debugf("decoding user info workload")
+	userType, err := decodeString(src)
+	if err != nil {
+		return fmt.Errorf("failed to decode usertype: %w", err)
+	}
+
+	tools, ok := Users[userType]
+	if !ok {
+		return fmt.Errorf("unknown user type: %s", userType)
+	}
+
 	var count int32
-	err := binary.Read(src, binary.LittleEndian, &count)
+	err = binary.Read(src, binary.LittleEndian, &count)
 	if err != nil {
 		return err
 	}
@@ -163,13 +190,11 @@ func (w *SimpleWorkload) Decode(src io.Reader) error {
 	*w = make(SimpleWorkload, count)
 
 	for i := int32(0); i < count; i++ {
-		logging.Debugf("decoding user info")
-		userInfo := &user.StubbornUser{}
+		userInfo := tools.EmptyUser()
 		err = userInfo.Decode(src)
 		if err != nil {
 			return err
 		}
-		logging.Debugf("decodied user info with pk len %d", len(userInfo.Account.PrivateKey))
 		(*w)[i] = userInfo
 	}
 

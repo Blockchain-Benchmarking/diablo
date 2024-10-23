@@ -9,9 +9,14 @@ import (
 type Setup struct {
 	Interface   string     `yaml:"interface"`
 	Application string     `yaml:"application"`
-	User        string     `yaml:"user"`
+	User        User       `yaml:"user"`
 	Workload    string     `yaml:"workload"`
 	Endpoints   []Endpoint `yaml:"endpoints"`
+}
+
+type User struct {
+	Name   string                 `yaml:"name"`
+	Params map[string]interface{} `yaml:"params"`
 }
 
 type Endpoint struct {

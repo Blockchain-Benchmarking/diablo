@@ -1,11 +1,16 @@
 interface: "ethereum"
 application: "payment"
-user: "stubborn"
+user:
+  name: "stubbornPaymentUser"
+  params:
+    transactions: 1
+    max_retries: 5
+    timeout: 5s
 workload: "simple"
 endpoints:
   - addresses:
       - "127.0.0.1:9000"
-      - "127.0.0.1:9001"
-      - "127.0.0.1:9002"
     tags:
       - "local"
+
+      #list d'ip filtrée par tags / (opt) serveur de bootstrap par défaut

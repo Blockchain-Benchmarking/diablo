@@ -1,9 +1,9 @@
 package core
 
 import (
+	"diablo/core/behavior"
 	"diablo/core/logging"
 	"diablo/core/remote"
-	"diablo/core/user"
 	"diablo/core/workload"
 	"fmt"
 	"gopkg.in/yaml.v3"
@@ -17,7 +17,7 @@ type Primary struct {
 
 	NumSecondary int
 	Setup        *Setup
-	Accounts     []user.Account
+	Accounts     []behavior.Account
 	ListenPort   int
 }
 
@@ -33,7 +33,7 @@ func NewPrimary(port int, secondary int, setupPath string, accountsPath string) 
 		return nil, err
 	}
 
-	var accounts []user.Account
+	var accounts []behavior.Account
 	err = yaml.Unmarshal(accBytes, &accounts)
 	if err != nil {
 		return nil, err
@@ -47,7 +47,7 @@ func NewPrimary(port int, secondary int, setupPath string, accountsPath string) 
 	}, nil
 }
 
-func (p *Primary) Run() (user.Results, error) {
+func (p *Primary) Run() (behavior.Results, error) {
 	logging.Debugf("wait for %d secondary connections", p.NumSecondary)
 	secondaries, err := p.acceptSecondaries()
 	if err != nil {
@@ -55,7 +55,12 @@ func (p *Primary) Run() (user.Results, error) {
 	}
 
 	// select coordinator and send workload
-	p.Coordinator = workload.Workloads[p.Setup.Workload].NewCoordinator(secondaries, p.Accounts, p.Setup.User, p.Setup.Application, p.Setup.Interface)
+	coordinatorGen, ok := workload.Workloads[p.Setup.Workload]
+	if !ok {
+		return nil, fmt.Errorf("coordinator for workload '%s' not found", p.Setup.Workload)
+	}
+
+	p.Coordinator = coordinatorGen.NewCoordinator(secondaries, p.Accounts, p.Setup.User.Name, p.Setup.Application, p.Setup.Interface, p.Setup.User.Params)
 
 	logging.Debugf("send workload")
 	err = p.Coordinator.SendWorkload()
