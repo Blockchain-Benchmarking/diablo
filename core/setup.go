@@ -7,11 +7,15 @@ import (
 )
 
 type Setup struct {
-	Interface   string     `yaml:"interface"`
-	Application string     `yaml:"application"`
-	User        User       `yaml:"user"`
-	Workload    string     `yaml:"workload"`
-	Endpoints   []Endpoint `yaml:"endpoints"`
+	Interface string     `yaml:"interface"`
+	User      User       `yaml:"user"`
+	Workload  Workload   `yaml:"workload"`
+	Endpoints []Endpoint `yaml:"endpoints"`
+}
+
+type Workload struct {
+	Name   string
+	Params map[string]string `yaml:"params"`
 }
 
 type User struct {

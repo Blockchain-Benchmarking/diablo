@@ -1,4 +1,4 @@
-package remote
+package network
 
 import (
 	"encoding/binary"

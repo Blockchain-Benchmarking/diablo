@@ -2,7 +2,7 @@ package core
 
 import (
 	"diablo/core/logging"
-	"diablo/core/remote"
+	"diablo/core/network"
 	"diablo/core/workload"
 	"fmt"
 	"net"
@@ -15,8 +15,8 @@ type Secondary struct {
 	ConnectAddr string
 	Tags        []string
 
-	PrimaryConn   *remote.PrimaryConn
-	PrimaryParams *remote.MsgPrimaryParameters
+	PrimaryConn   *network.PrimaryConn
+	PrimaryParams *network.MsgPrimaryParameters
 }
 
 func NewSecondary(primary string, tags []string) (*Secondary, error) {
@@ -37,10 +37,10 @@ func (s *Secondary) Run() error {
 			conn.RemoteAddr().String())
 	}
 
-	s.PrimaryConn = remote.NewPrimaryConn(conn)
+	s.PrimaryConn = network.NewPrimaryConn(conn)
 
 	logging.Debugf("send secondary parameters")
-	s.PrimaryParams, err = s.PrimaryConn.Init(&remote.MsgSecondaryParameters{
+	s.PrimaryParams, err = s.PrimaryConn.Init(&network.MsgSecondaryParameters{
 		Tags: s.Tags,
 	})
 

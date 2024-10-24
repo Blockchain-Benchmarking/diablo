@@ -2,8 +2,8 @@ package workload
 
 import (
 	"diablo/core/behavior"
+	"diablo/core/network"
 	"diablo/core/payment"
-	"diablo/core/remote"
 	"encoding/binary"
 	"io"
 	"time"
@@ -13,6 +13,11 @@ var Workloads = map[string]Tuple{
 	"simple": {
 		NewSimpleCoordinator,
 		NewSimpleGenerator,
+	},
+
+	"dynamic:": {
+		NewDynamicCoordinator,
+		NewDynamicGenerator,
 	},
 }
 
@@ -31,8 +36,8 @@ var Users = map[string]UserTools{
 }
 
 type Tuple struct {
-	NewCoordinator func(secondaries []*remote.Secondary, accounts []behavior.Account, user string, app string, blockchain string, params map[string]interface{}) Coordinator
-	NewGenerator   func(primary *remote.PrimaryConn, wk Workload, timeout time.Duration) (Generator, error)
+	NewCoordinator func(secondaries []*network.Secondary, accounts []behavior.Account, user string, blockchain string, params map[string]interface{}) Coordinator
+	NewGenerator   func(primary *network.PrimaryConn, wk Workload, timeout time.Duration) (Generator, error)
 }
 
 type Generator interface {

@@ -3,7 +3,7 @@ package core
 import (
 	"diablo/core/behavior"
 	"diablo/core/logging"
-	"diablo/core/remote"
+	"diablo/core/network"
 	"diablo/core/workload"
 	"fmt"
 	"gopkg.in/yaml.v3"
@@ -55,12 +55,12 @@ func (p *Primary) Run() (behavior.Results, error) {
 	}
 
 	// select coordinator and send workload
-	coordinatorGen, ok := workload.Workloads[p.Setup.Workload]
+	coordinatorGen, ok := workload.Workloads[p.Setup.Workload.Name]
 	if !ok {
 		return nil, fmt.Errorf("coordinator for workload '%s' not found", p.Setup.Workload)
 	}
 
-	p.Coordinator = coordinatorGen.NewCoordinator(secondaries, p.Accounts, p.Setup.User.Name, p.Setup.Application, p.Setup.Interface, p.Setup.User.Params)
+	p.Coordinator = coordinatorGen.NewCoordinator(secondaries, p.Accounts, p.Setup.User.Name, p.Setup.Interface, p.Setup.User.Params)
 
 	logging.Debugf("send workload")
 	err = p.Coordinator.SendWorkload()
@@ -93,9 +93,9 @@ func (p *Primary) Run() (behavior.Results, error) {
 	return p.Coordinator.CollectResults(), nil
 }
 
-func (p *Primary) acceptSecondaries() ([]*remote.Secondary, error) {
+func (p *Primary) acceptSecondaries() ([]*network.Secondary, error) {
 	var laddr, raddr string
-	var remoteSecondaries []*remote.Secondary
+	var remoteSecondaries []*network.Secondary
 	var listener net.Listener
 	var conn net.Conn
 	var err error
@@ -103,7 +103,7 @@ func (p *Primary) acceptSecondaries() ([]*remote.Secondary, error) {
 	var i int
 
 	laddr = fmt.Sprintf("0.0.0.0:%d", p.ListenPort)
-	remoteSecondaries = make([]*remote.Secondary, p.NumSecondary)
+	remoteSecondaries = make([]*network.Secondary, p.NumSecondary)
 
 	logging.Debugf("listen for %d secondary connections on %s", len(remoteSecondaries), laddr)
 	listener, err = net.Listen("tcp", laddr)
@@ -141,7 +141,7 @@ func (p *Primary) acceptSecondaries() ([]*remote.Secondary, error) {
 		raddr = conn.RemoteAddr().String()
 		logging.Debugf("new secondary connection from %s", raddr)
 
-		remoteSecondaries[i], err = remote.NewRemoteSecondary(conn, p.Setup.Interface, nil) // TODO add parameters to setup struct later
+		remoteSecondaries[i], err = network.NewRemoteSecondary(conn, p.Setup.Interface, nil) // TODO add parameters to setup struct later
 		if err != nil {
 			conn.Close()
 			return nil, err

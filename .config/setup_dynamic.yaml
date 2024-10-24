@@ -5,7 +5,11 @@ user:
     transactions: 1
     max_retries: 5
     timeout: 5s
-workload: "simple"
+workload:
+  name: "dynamic"
+  params:
+    init: 3
+    batch: 5
 endpoints:
   - addresses:
       - "127.0.0.1:9000"

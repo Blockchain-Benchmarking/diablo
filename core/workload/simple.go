@@ -3,7 +3,7 @@ package workload
 import (
 	"diablo/core/behavior"
 	"diablo/core/logging"
-	"diablo/core/remote"
+	"diablo/core/network"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -12,56 +12,34 @@ import (
 )
 
 type SimpleCoordinator struct {
-	secondaries     []*remote.Secondary
-	accounts        []behavior.Account
-	userType        string
-	app             string
-	blockchain      string
+	secondaries     []*network.Secondary
 	userParams      map[string]interface{}
 	emptyResultsGen func() behavior.Results
+	wk              SimpleWorkload
 }
 
-func NewSimpleCoordinator(secondaries []*remote.Secondary, accounts []behavior.Account, userType string, app string, blockchain string, params map[string]interface{}) Coordinator {
-	return &SimpleCoordinator{
-		secondaries: secondaries,
-		accounts:    accounts,
-		userType:    userType,
-		app:         app,
-		blockchain:  blockchain,
-		userParams:  params,
+func NewSimpleCoordinator(secondaries []*network.Secondary, accounts []behavior.Account, userType string, blockchain string, userParams map[string]interface{}) (Coordinator, error) {
+	logging.Infof("initialize workload")
+
+	//Get specific user initializer
+	wk, err := CreateUsersFromAccounts(accounts, userType, blockchain, userParams)
+	if err != nil {
+		return nil, err
 	}
+
+	userTools := Users[userType]
+	return &SimpleCoordinator{
+		secondaries:     secondaries,
+		userParams:      userParams,
+		emptyResultsGen: userTools.EmptyResults,
+		wk:              wk,
+	}, nil
 }
 
 // SendWorkload implements Coordinator
 func (s *SimpleCoordinator) SendWorkload() error {
-	wk := make(SimpleWorkload, len(s.accounts))
-
-	logging.Infof("initialize workload")
-
-	//Get specific user initializer
-	userTools := Users[s.userType]
-	s.emptyResultsGen = userTools.EmptyResults
-
-	var addresses []string
-	for _, acc := range s.accounts {
-		addresses = append(addresses, acc.Address)
-	}
-
-	var err error
-	for i, acc := range s.accounts {
-		wk[i], err = userTools.Init(s.blockchain, behavior.Config{
-			Endpoint:   "ws://127.0.0.1:9000",
-			Addresses:  addresses,
-			PrivateKey: acc.PrivateKey,
-			Address:    acc.Address,
-		}, s.userParams)
-		if err != nil {
-			return fmt.Errorf("failed to create user: %w", err)
-		}
-	}
-
 	//TODO share between secondaries
-	err = wk.Encode(s.secondaries[0].Writer())
+	err := s.wk.Encode(s.secondaries[0].Writer())
 	if err != nil {
 		return fmt.Errorf("failed to encode workload: %w", err)
 	}
@@ -88,14 +66,14 @@ func (s *SimpleCoordinator) CollectResults() behavior.Results {
 }
 
 type SimpleGenerator struct {
-	primary *remote.PrimaryConn
+	primary *network.PrimaryConn
 	users   []behavior.User
 	wg      *sync.WaitGroup
 	results chan behavior.Results
 	timeout time.Duration
 }
 
-func NewSimpleGenerator(primary *remote.PrimaryConn, wk Workload, timeout time.Duration) (Generator, error) {
+func NewSimpleGenerator(primary *network.PrimaryConn, wk Workload, timeout time.Duration) (Generator, error) {
 	simpleWk, ok := wk.(*SimpleWorkload)
 	if !ok {
 		return nil, fmt.Errorf("expected SimpleWorkload, got something else")
