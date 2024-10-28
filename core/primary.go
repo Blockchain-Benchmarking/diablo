@@ -55,42 +55,12 @@ func (p *Primary) Run() (behavior.Results, error) {
 	}
 
 	// select coordinator and send workload
-	coordinatorGen, ok := workload.Workloads[p.Setup.Workload.Name]
+	t, ok := workload.Workloads[p.Setup.Workload.Name]
 	if !ok {
 		return nil, fmt.Errorf("coordinator for workload '%s' not found", p.Setup.Workload)
 	}
 
-	p.Coordinator = coordinatorGen.NewCoordinator(secondaries, p.Accounts, p.Setup.User.Name, p.Setup.Interface, p.Setup.User.Params)
-
-	logging.Debugf("send workload")
-	err = p.Coordinator.SendWorkload()
-	if err != nil {
-		return nil, err
-	}
-
-	logging.Debugf("workload sent to secondaries")
-
-	//wait for secondaries to ack they are ready
-	for i := range secondaries {
-		logging.Tracef("wait for secondary %s", secondaries[i].Addr())
-		err := secondaries[i].Ready()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	//send start signal
-	logging.Infof("start benchmark")
-	for i := range secondaries {
-		logging.Tracef("send start signal to %s", secondaries[i].Addr())
-		err := secondaries[i].Start(100000) //TODO
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	//Coordinator collects results
-	return p.Coordinator.CollectResults(), nil
+	return t.Coordinator.Run(secondaries, p.Accounts, p.Setup.User.Name, p.Setup.Interface, p.Setup.User.Params, p.Setup.Workload.Params)
 }
 
 func (p *Primary) acceptSecondaries() ([]*network.Secondary, error) {
@@ -141,7 +111,7 @@ func (p *Primary) acceptSecondaries() ([]*network.Secondary, error) {
 		raddr = conn.RemoteAddr().String()
 		logging.Debugf("new secondary connection from %s", raddr)
 
-		remoteSecondaries[i], err = network.NewRemoteSecondary(conn, p.Setup.Interface, nil) // TODO add parameters to setup struct later
+		remoteSecondaries[i], err = network.NewRemoteSecondary(conn, p.Setup.Workload.Name)
 		if err != nil {
 			conn.Close()
 			return nil, err

@@ -1,23 +1,27 @@
 package workload
 
 import (
+	"bufio"
+	"bytes"
 	"diablo/core/behavior"
+	"diablo/core/logging"
 	"diablo/core/network"
 	"diablo/core/payment"
 	"encoding/binary"
+	"fmt"
 	"io"
-	"time"
+	"sync"
 )
 
 var Workloads = map[string]Tuple{
 	"simple": {
-		NewSimpleCoordinator,
-		NewSimpleGenerator,
+		&SimpleCoordinator{},
+		&SimpleGenerator{},
 	},
 
-	"dynamic:": {
-		NewDynamicCoordinator,
-		NewDynamicGenerator,
+	"dynamic": {
+		&DynamicCoordinator{},
+		&DynamicGenerator{},
 	},
 }
 
@@ -36,33 +40,105 @@ var Users = map[string]UserTools{
 }
 
 type Tuple struct {
-	NewCoordinator func(secondaries []*network.Secondary, accounts []behavior.Account, user string, blockchain string, params map[string]interface{}) Coordinator
-	NewGenerator   func(primary *network.PrimaryConn, wk Workload, timeout time.Duration) (Generator, error)
-}
-
-type Generator interface {
-	Start() error
-	CollectResults() (behavior.Results, error)
+	Coordinator
+	Generator
 }
 
 type Coordinator interface {
-	SendWorkload() error
-	CollectResults() behavior.Results
+	Run(secondaries []*network.Secondary, accounts []behavior.Account, user string, blockchain string, userParams map[string]interface{}, workloadParams map[string]interface{}) (behavior.Results, error)
 }
 
-type Workload interface {
-	Encode(dest io.Writer) error
-	Decode(src io.Reader) error
+type Generator interface {
+	Run(primary *network.PrimaryConn, wg *sync.WaitGroup)
+}
+
+type Workload []behavior.User
+
+func (w *Workload) encode() ([]byte, error) {
+	var buf bytes.Buffer
+
+	err := encodeString(&buf, (*w)[0].Name())
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode usertype: %w", err)
+	}
+
+	count := int32(len(*w))
+	err = binary.Write(&buf, binary.LittleEndian, count)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode Workload count %d: %w", count, err)
+	}
+
+	for _, u := range *w {
+		err = u.Encode(&buf)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode userInfo: %w", err)
+		}
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (w *Workload) Send(dest *bufio.Writer) error {
+	buf, err := w.encode()
+	if err != nil {
+		return fmt.Errorf("failed to encode workload: %w", err)
+	}
+
+	_, err = dest.Write(buf)
+	if err != nil {
+		return fmt.Errorf("failed to write workload: %w", err)
+	}
+
+	err = dest.Flush()
+	if err != nil {
+		return fmt.Errorf("failed to flush writer: %w", err)
+	}
+
+	return nil
+}
+
+func (w *Workload) Receive(src *bufio.Reader) error {
+	logging.Debugf("decoding user info workload")
+	userType, err := decodeString(src)
+	if err != nil {
+		return fmt.Errorf("failed to decode usertype: %w", err)
+	}
+
+	logging.Debugf("found user type %s", userType)
+
+	tools, ok := Users[userType]
+	if !ok {
+		return fmt.Errorf("unknown user type: %s", userType)
+	}
+
+	var count int32
+	err = binary.Read(src, binary.LittleEndian, &count)
+	if err != nil {
+		return err
+	}
+
+	logging.Infof("found length %d", count)
+
+	*w = make(Workload, count)
+
+	for i := int32(0); i < count; i++ {
+		userInfo := tools.EmptyUser()
+		err = userInfo.Decode(src)
+		if err != nil {
+			return err
+		}
+		(*w)[i] = userInfo
+	}
+
+	return nil
 }
 
 func encodeString(dest io.Writer, str string) error {
-	// First, write the length of the string as int32
 	length := int32(len(str))
 	if err := binary.Write(dest, binary.LittleEndian, length); err != nil {
 		return err
 	}
 
-	// Then, write the string bytes
 	if _, err := dest.Write([]byte(str)); err != nil {
 		return err
 	}
@@ -71,13 +147,11 @@ func encodeString(dest io.Writer, str string) error {
 }
 
 func decodeString(src io.Reader) (string, error) {
-	// Read the length of the string
 	var length int32
 	if err := binary.Read(src, binary.LittleEndian, &length); err != nil {
 		return "", err
 	}
 
-	// Read the string bytes
 	buf := make([]byte, length)
 	if _, err := io.ReadFull(src, buf); err != nil {
 		return "", err

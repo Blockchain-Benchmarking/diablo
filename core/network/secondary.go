@@ -2,47 +2,53 @@ package network
 
 import (
 	"bufio"
+	"diablo/core/logging"
+	"diablo/core/messaging"
 	"fmt"
 	"net"
 )
 
 type Secondary struct {
 	conn   *secondaryConn
-	params *MsgSecondaryParameters
+	params *messaging.SecondaryInitMessage
 }
 
-func NewRemoteSecondary(conn net.Conn, sysname string, params map[string]string) (*Secondary, error) {
+func NewRemoteSecondary(conn net.Conn, workload string) (*Secondary, error) {
 	var secondary Secondary
-	var err error
 
 	secondary.conn = newSecondaryConn(conn)
 
-	secondary.params, err = secondary.conn.init(&MsgPrimaryParameters{
-		Sysname:     sysname,
-		ChainParams: params,
-	})
-
+	err := secondary.Send(messaging.PrimaryInitMessage{Workload: workload})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to send primary init message: %w", err)
 	}
 
-	secondary.params.Tags = append(secondary.params.Tags, secondary.Addr())
+	//Wait for secondary to confirm init
+	msg, err := secondary.Read()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read secondary init message: %w", err)
+	}
+
+	if msg.Type() != messaging.SecondaryInitType {
+		return nil, fmt.Errorf("unexpected message type from secondary, expected %s, got %s", messaging.SecondaryInitType, msg.Type())
+	}
+
+	logging.Debugf("received init message from secondary")
+	secondary.params = msg.(*messaging.SecondaryInitMessage)
 
 	return &secondary, nil
 }
 
+func (s *Secondary) Send(msg messaging.Message) error {
+	return SendMessage(s.conn.writer, msg)
+}
+
+func (s *Secondary) Read() (messaging.Message, error) {
+	return ReadMessage(s.conn.reader)
+}
+
 func (s *Secondary) Tags() []string {
 	return s.params.Tags
-}
-
-func (s *Secondary) Ready() error {
-	return s.conn.syncReady()
-}
-
-func (s *Secondary) Start(duration float64) error {
-	return s.conn.sendStart(&MsgStart{
-		Duration: duration,
-	})
 }
 
 func (s *Secondary) Addr() string {
@@ -53,13 +59,11 @@ func (s *Secondary) Close() error {
 	return s.conn.Close()
 }
 
-func (s *Secondary) Writer() *bufio.Writer {
-	return s.conn.writer
-}
-
 func (s *Secondary) Reader() *bufio.Reader {
 	return s.conn.reader
 }
+
+func (s *Secondary) Writer() *bufio.Writer { return s.conn.writer }
 
 type secondaryConn struct {
 	conn   net.Conn
@@ -73,61 +77,6 @@ func newSecondaryConn(conn net.Conn) *secondaryConn {
 		reader: bufio.NewReader(conn),
 		writer: bufio.NewWriter(conn),
 	}
-}
-
-func (s *secondaryConn) init(fromPrimary *MsgPrimaryParameters) (*MsgSecondaryParameters, error) {
-	var err error
-
-	err = fromPrimary.Encode(s.writer)
-	if err != nil {
-		return nil, err
-	}
-
-	err = s.writer.Flush()
-	if err != nil {
-		return nil, err
-	}
-
-	return DecodeMsgSecondaryParameters(s.reader)
-}
-
-func (s *secondaryConn) syncReady() error {
-	var err error
-
-	msg := &MsgPrepareDone{
-		Ready: false,
-	}
-	err = msg.Encode(s.writer)
-	if err != nil {
-		return err
-	}
-
-	err = s.writer.Flush()
-	if err != nil {
-		return err
-	}
-
-	ready, err := DecodeMsgPrepareDone(s.reader)
-	if err != nil {
-		return err
-	}
-
-	if !ready.Ready {
-		return fmt.Errorf("secondary %s is not ready", s.addr())
-	}
-
-	return nil
-}
-
-func (s *secondaryConn) sendStart(fromPrimary *MsgStart) error {
-	var err error
-
-	err = fromPrimary.Encode(s.writer)
-	if err != nil {
-		return err
-	}
-
-	return s.writer.Flush()
 }
 
 func (s *secondaryConn) addr() string {

@@ -2,21 +2,20 @@ package core
 
 import (
 	"diablo/core/logging"
+	"diablo/core/messaging"
 	"diablo/core/network"
 	"diablo/core/workload"
 	"fmt"
 	"net"
-	"time"
+	"sync"
 )
 
 type Secondary struct {
-	workload.Generator
-
 	ConnectAddr string
 	Tags        []string
 
 	PrimaryConn   *network.PrimaryConn
-	PrimaryParams *network.MsgPrimaryParameters
+	PrimaryParams *messaging.PrimaryInitMessage
 }
 
 func NewSecondary(primary string, tags []string) (*Secondary, error) {
@@ -39,58 +38,48 @@ func (s *Secondary) Run() error {
 
 	s.PrimaryConn = network.NewPrimaryConn(conn)
 
-	logging.Debugf("send secondary parameters")
-	s.PrimaryParams, err = s.PrimaryConn.Init(&network.MsgSecondaryParameters{
-		Tags: s.Tags,
-	})
+	logging.Debugf("wait for primary parameters")
 
+	//read init message from primary connection
+	msg, err := s.PrimaryConn.Read()
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot read from primary connection: %w", err)
 	}
 
-	logging.Debugf("wait for workload")
-	//wait for the coordinator to send the workload
-	wk := &workload.SimpleWorkload{}
-	err = wk.Decode(s.PrimaryConn.Reader())
-	if err != nil {
-		return err
+	primaryMsg, ok := msg.(*messaging.PrimaryInitMessage)
+	if !ok {
+		return fmt.Errorf("primary init message type got %s", msg.Type())
 	}
 
-	//create users
-	//TODO use interface
-	s.Generator, err = workload.NewSimpleGenerator(s.PrimaryConn, wk, 5*time.Minute) //TODO
-	if err != nil {
-		return err
+	logging.Debugf("primary init message received")
+
+	//create coordinator and handling goroutine
+	t, ok := workload.Workloads[primaryMsg.Workload]
+	if !ok {
+		return fmt.Errorf("tuple for workload %s not found", primaryMsg.Workload)
 	}
 
-	//send ready signal
-	err = s.PrimaryConn.SyncReady()
+	logging.Debugf("running generator")
+
+	//create generator
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	go t.Generator.Run(s.PrimaryConn, wg)
+
+	logging.Infof("sending secondary init message")
+
+	//send init message back to primary
+	secondaryMsg := messaging.SecondaryInitMessage{Tags: s.Tags}
+	err = s.PrimaryConn.Send(&secondaryMsg)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to send secondary init message: %w", err)
 	}
 
-	//wait for start signal
-	_, err = s.PrimaryConn.WaitStart() //TODO consider duration
-	if err != nil {
-		return err
-	}
+	logging.Infof("waiting for coordinator")
 
-	//start generator
-	err = s.Start()
-	if err != nil {
-		return err
-	}
+	wg.Wait()
 
-	//send results to primary
-	results, err := s.CollectResults()
-	if err != nil {
-		return err
-	}
+	logging.Infof("secondary done")
 
-	err = results.Encode(s.PrimaryConn.Writer())
-	if err != nil {
-		return err
-	}
-
-	return s.PrimaryConn.Writer().Flush()
+	return nil
 }

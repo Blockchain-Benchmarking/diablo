@@ -7,12 +7,12 @@ import (
 )
 
 type Packet struct {
-	Type    string
-	Payload json.RawMessage
+	Type    string          `json:"type"`
+	Payload json.RawMessage `json:"payload"`
 }
 
 func (p *Packet) Marshal() ([]byte, error) {
-	return json.Marshal(p.Payload)
+	return json.Marshal(p)
 }
 
 func Unmarshal(data []byte) (messaging.Message, error) {

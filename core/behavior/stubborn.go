@@ -1,7 +1,8 @@
 package behavior
 
 import (
-	"diablo/core/logging"
+	"bufio"
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -24,12 +25,16 @@ type StubbornAction struct {
 type StubbornResult []SingleUserStubbornResult
 type SingleUserStubbornResult []*StubbornAction
 
-func (s SingleUserStubbornResult) Encode(dest io.Writer) error {
-	panic("encoding and decoding aren't implemented for SingleUserStubbornResult")
+func (s SingleUserStubbornResult) Send(dest *bufio.Writer) error {
+	panic("not implemented")
 }
 
-func (s SingleUserStubbornResult) Decode(src io.Reader) error {
-	panic("encoding and decoding aren't implemented for SingleUserStubbornResult")
+func (s SingleUserStubbornResult) Receive(src *bufio.Reader) error {
+	panic("not implemented")
+}
+
+func (s SingleUserStubbornResult) Encode() ([]byte, error) {
+	panic("not implemented")
 }
 
 func (s SingleUserStubbornResult) Merge(other Results) Results {
@@ -80,7 +85,7 @@ func (s *StubbornBehavior) Encode(dest io.Writer) error {
 	return nil
 }
 
-func (s *StubbornBehavior) Decode(src io.Reader) error {
+func (s *StubbornBehavior) Decode(src *bufio.Reader) error {
 	err := binary.Read(src, binary.LittleEndian, &s.MaxRetries)
 	if err != nil {
 		return fmt.Errorf("failed to decode max retries")
@@ -89,41 +94,62 @@ func (s *StubbornBehavior) Decode(src io.Reader) error {
 	return nil
 }
 
-// Encode implements Results
-func (s *StubbornResult) Encode(dest io.Writer) error {
-	logging.Infof("writing length %d", int32(len(*s)))
-	if err := binary.Write(dest, binary.LittleEndian, int32(len(*s))); err != nil {
-		return err
+func (s *StubbornResult) Encode() ([]byte, error) {
+	var buf bytes.Buffer
+
+	if err := binary.Write(&buf, binary.LittleEndian, int32(len(*s))); err != nil {
+		return nil, err
 	}
 
 	for _, userResult := range *s {
-		if err := binary.Write(dest, binary.LittleEndian, int32(len(userResult))); err != nil {
-			return err
+		if err := binary.Write(&buf, binary.LittleEndian, int32(len(userResult))); err != nil {
+			return nil, err
 		}
 
 		for _, action := range userResult {
-			if err := binary.Write(dest, binary.LittleEndian, action.StartTime); err != nil {
-				return err
+			if err := binary.Write(&buf, binary.LittleEndian, action.StartTime); err != nil {
+				return nil, err
 			}
-			if err := binary.Write(dest, binary.LittleEndian, action.SuccessTime); err != nil {
-				return err
+			if err := binary.Write(&buf, binary.LittleEndian, action.SuccessTime); err != nil {
+				return nil, err
 			}
-			if err := binary.Write(dest, binary.LittleEndian, action.FinalFailureTime); err != nil {
-				return err
+			if err := binary.Write(&buf, binary.LittleEndian, action.FinalFailureTime); err != nil {
+				return nil, err
 			}
-			if err := binary.Write(dest, binary.LittleEndian, action.Retries); err != nil {
-				return err
+			if err := binary.Write(&buf, binary.LittleEndian, action.Retries); err != nil {
+				return nil, err
 			}
-			if err := binary.Write(dest, binary.LittleEndian, action.HasError); err != nil {
-				return err
+			if err := binary.Write(&buf, binary.LittleEndian, action.HasError); err != nil {
+				return nil, err
 			}
 		}
 	}
+
+	return buf.Bytes(), nil
+}
+
+// Send implements Results
+func (s *StubbornResult) Send(dest *bufio.Writer) error {
+	buf, err := s.Encode()
+	if err != nil {
+		return fmt.Errorf("failed to encode result: %w", err)
+	}
+
+	_, err = dest.Write(buf)
+	if err != nil {
+		return fmt.Errorf("failed to write result: %w", err)
+	}
+
+	err = dest.Flush()
+	if err != nil {
+		return fmt.Errorf("failed to flush: %w", err)
+	}
+
 	return nil
 }
 
-// Decode implements Results
-func (s *StubbornResult) Decode(src io.Reader) error {
+// Receive implements Results
+func (s *StubbornResult) Receive(src *bufio.Reader) error {
 	var resultLength int32
 	if err := binary.Read(src, binary.LittleEndian, &resultLength); err != nil {
 		return fmt.Errorf("failed to read result length: %w", err)

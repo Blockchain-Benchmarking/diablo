@@ -15,7 +15,7 @@ type Setup struct {
 
 type Workload struct {
 	Name   string
-	Params map[string]string `yaml:"params"`
+	Params map[string]interface{} `yaml:"params"`
 }
 
 type User struct {

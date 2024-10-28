@@ -5,7 +5,8 @@ user:
     transactions: 1
     max_retries: 5
     timeout: 5s
-workload: "simple"
+workload:
+  name: "simple"
 endpoints:
   - addresses:
       - "127.0.0.1:9000"

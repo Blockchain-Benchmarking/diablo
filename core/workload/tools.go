@@ -2,39 +2,56 @@ package workload
 
 import (
 	"diablo/core/behavior"
+	"errors"
 	"fmt"
 	"sync"
 )
 
+var emptyQueueErr = errors.New("empty queue")
+
 type Queue struct {
-	sync.Mutex
-	users []behavior.User
+	sync.RWMutex
+	users Workload
 }
 
-func NewQueue(users []behavior.User) *Queue {
+func NewQueue(users Workload) *Queue {
 	return &Queue{
 		users: users,
 	}
 }
 
-func (q *Queue) AddUsers(users ...behavior.User) {
+func (q *Queue) Empty() bool {
+	q.RLock()
+	defer q.RUnlock()
+	return len(q.users) == 0
+}
+
+func (q *Queue) AddUsers(users Workload) {
 	q.Lock()
 	defer q.Unlock()
 	q.users = append(q.users, users...)
 }
 
-func (q *Queue) GetNext(batch int) []behavior.User {
+func (q *Queue) GetNext(batch int) (Workload, bool) {
 	q.Lock()
 	defer q.Unlock()
+
+	if len(q.users) == 0 {
+		return nil, false
+	}
+
+	if batch > len(q.users) {
+		batch = len(q.users)
+	}
 
 	next := q.users[:batch]
 	q.users = q.users[batch:]
 
-	return next
+	return next, len(q.users) == 0
 }
 
-func CreateUsersFromAccounts(accounts []behavior.Account, userType string, blockchain string, userParams map[string]interface{}) ([]behavior.User, error) {
-	var users []behavior.User
+func CreateUsersFromAccounts(accounts []behavior.Account, userType string, blockchain string, userParams map[string]interface{}) (Workload, error) {
+	users := make(Workload, len(accounts))
 
 	userTools := Users[userType]
 
