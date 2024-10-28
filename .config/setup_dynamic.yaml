@@ -2,13 +2,12 @@ interface: "ethereum"
 user:
   name: "stubbornPaymentUser"
   params:
-    transactions: 1
+    transactions: 2
     max_retries: 5
     timeout: 5s
 workload:
   name: "dynamic"
   params:
-    init: 3
     batch: 5
 endpoints:
   - addresses:

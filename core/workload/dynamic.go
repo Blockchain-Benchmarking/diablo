@@ -7,8 +7,9 @@ import (
 	"diablo/core/logging"
 	"diablo/core/messaging"
 	"diablo/core/network"
-	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 )
@@ -16,16 +17,16 @@ import (
 type DynamicCoordinator struct {
 	secondaries map[string]*network.Secondary
 
-	wg      *sync.WaitGroup
-	results behavior.Results
+	wg *sync.WaitGroup
 
-	queue  *Queue //workload queue
+	results        behavior.Results
+	emptyResultGen func() behavior.Results
+	resCounter     int
+
+	queue  *Queue
 	config DynamicConfig
 
-	msg chan messaging.Message // messages received to be handled
-
-	emptyResultsGen func() behavior.Results
-	stop            chan struct{}
+	stop chan struct{}
 }
 
 func (*DynamicCoordinator) Run(secondaries []*network.Secondary, accounts []behavior.Account, userType string, blockchain string, userParams map[string]interface{}, configParams map[string]interface{}) (behavior.Results, error) {
@@ -44,15 +45,21 @@ func (*DynamicCoordinator) Run(secondaries []*network.Secondary, accounts []beha
 		return nil, fmt.Errorf("failed to parse dynamic config: %w", err)
 	}
 
+	userTools, ok := Users[userType]
+	if !ok {
+		return nil, fmt.Errorf("user type %s not found in Users", userType)
+	}
+
 	c := DynamicCoordinator{
 		secondaries: secMap,
 		wg:          &sync.WaitGroup{},
 		stop:        make(chan struct{}),
 
-		msg: make(chan messaging.Message),
-
 		queue:  NewQueue(users),
 		config: *config,
+
+		results:        userTools.EmptyResults(),
+		emptyResultGen: userTools.EmptyResults,
 	}
 
 	c.wg.Add(len(secondaries))
@@ -72,13 +79,14 @@ func (d *DynamicCoordinator) sendUsers(addr string) error {
 	secondary := d.secondaries[addr]
 
 	users, empty := d.queue.GetNext(d.config.BatchSize)
-	if users == nil {
-		return emptyQueueErr
-	}
 
-	buf, err := users.encode()
-	if err != nil {
-		return fmt.Errorf("failed to encode workload: %w", err)
+	var buf []byte
+	var err error
+	if users != nil {
+		buf, err = users.encode()
+		if err != nil {
+			return fmt.Errorf("failed to encode workload: %w", err)
+		}
 	}
 
 	wk := messaging.Workload{
@@ -105,21 +113,32 @@ func (d *DynamicCoordinator) handleGeneratorMessages(s *network.Secondary) {
 		default:
 			msg, err := network.ReadMessage(s.Reader()) //todo
 			if err != nil {
-				logging.Errorf("error receiving message: %s", err.Error())
-				return
+				if strings.Contains(err.Error(), "EOF") {
+					logging.Warnf("EOF from %s", s.Addr())
+					return
+				}
+				logging.Fatalf("error receiving message from %s: %s", s.Addr(), err.Error())
+				continue
 			}
 
 			logging.Infof("sending msg type to channel %s", msg.Type())
 			switch msg.Type() {
 			case messaging.MoreType:
 				more := msg.(*messaging.More)
-				err := d.handleMoreMessage(more)
+				err = d.handleMoreMessage(more)
 				if err != nil {
-					logging.Errorf("failed to handle More message from %s: %s", more.Source, err.Error())
+					logging.Fatalf("failed to handle More message from %s: %s", more.Source, err.Error())
 				}
 			case messaging.ResultsType:
-				close(d.stop)
-				logging.Fatalf("weee received results, should implement")
+				results := msg.(*messaging.Results)
+				done, err := d.handleResultsMessage(results)
+				if err != nil {
+					logging.Fatalf("failed to handle Results message: %s", err.Error())
+				}
+				if done {
+					logging.Infof("sending done signal")
+					close(d.stop)
+				}
 
 			default:
 				logging.Errorf("unexpected message type: %s", msg.Type())
@@ -129,38 +148,44 @@ func (d *DynamicCoordinator) handleGeneratorMessages(s *network.Secondary) {
 	}
 }
 
-func (d *DynamicCoordinator) handleMoreMessage(msg *messaging.More) error {
-	err := d.sendUsers(msg.Source)
-	if err != nil && !errors.Is(err, emptyQueueErr) {
-		return err
+func (d *DynamicCoordinator) handleResultsMessage(msg *messaging.Results) (bool, error) {
+	res := d.emptyResultGen()
+	err := res.Receive(bufio.NewReader(bytes.NewReader(msg.Results)))
+	if err != nil {
+		return false, fmt.Errorf("failed to decode results: %w", err)
 	}
 
-	//if d.queue.Empty() {
-	//	return d.sendStop()
-	//}
+	d.results = d.results.Merge(res)
+	d.resCounter++
+
+	if d.resCounter == len(d.secondaries) {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (d *DynamicCoordinator) handleMoreMessage(msg *messaging.More) error {
+	err := d.sendUsers(msg.Source)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
 type DynamicConfig struct {
-	InitialLoad int `yaml:"init"`
-	BatchSize   int `yaml:"batch"`
+	BatchSize int `yaml:"batch"`
 }
 
 func ParseDynamicConfig(config map[string]interface{}) (*DynamicConfig, error) {
-	initialLoad, ok := config["init"].(int)
-	if !ok {
-		return nil, fmt.Errorf("`init` parameter should be specified")
-	}
-
 	batchSize, ok := config["batch"].(int)
 	if !ok {
 		return nil, fmt.Errorf("`batch` parameter should be specified")
 	}
 
 	return &DynamicConfig{
-		InitialLoad: initialLoad,
-		BatchSize:   batchSize,
+		BatchSize: batchSize,
 	}, nil
 }
 
@@ -207,7 +232,9 @@ func (d *DynamicGenerator) runUsers(wg *sync.WaitGroup) {
 		go user.Run(userWg, d.results)
 	}
 
+	logging.Infof("waiting for users to finish running")
 	userWg.Wait()
+	logging.Infof("all users executed, closing results channel")
 	close(d.results)
 }
 
@@ -217,7 +244,7 @@ func (d *DynamicGenerator) collectResults(wg *sync.WaitGroup) {
 	var results behavior.Results
 	for res := range d.results {
 		d.current.Add(-1)
-		if d.current.Load() == 0 {
+		if d.current.Load() == 0 { // ou autre condition ?
 			err := d.primary.Send(messaging.More{Source: d.primary.LocalAddr()})
 			if err != nil {
 				logging.Fatalf("failed to request more users from primary: %s", err.Error())
@@ -286,14 +313,18 @@ func (d *DynamicGenerator) handleCoordinatorMessages(wg *sync.WaitGroup) {
 }
 
 func (d *DynamicGenerator) handleWorkloadMessage(msg *messaging.Workload) error {
-	workload := &Workload{}
-	err := workload.Receive(bufio.NewReader(bytes.NewReader(msg.Users)))
-	if err != nil {
-		return fmt.Errorf("failed to decode workload: %w", err)
-	}
+	if len(msg.Users) > 0 {
+		workload := &Workload{}
+		err := workload.Receive(bufio.NewReader(bytes.NewReader(msg.Users)))
+		if err != nil {
+			return fmt.Errorf("failed to decode workload: %w", err)
+		}
 
-	for _, u := range *workload {
-		d.users <- u
+		for _, u := range *workload {
+			d.users <- u
+		}
+	} else {
+		logging.Warnf("received empty workload with done = " + strconv.FormatBool(msg.Done))
 	}
 
 	if msg.Done {
@@ -305,6 +336,7 @@ func (d *DynamicGenerator) handleWorkloadMessage(msg *messaging.Workload) error 
 }
 
 func (d *DynamicGenerator) StopReceiving() {
+	logging.Infof("closing stop and users channels")
 	close(d.stopCh)
 	close(d.users)
 }

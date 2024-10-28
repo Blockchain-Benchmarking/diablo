@@ -2,7 +2,6 @@ package network
 
 import (
 	"bufio"
-	"diablo/core/logging"
 	"diablo/core/messaging"
 	"net"
 )
@@ -35,11 +34,6 @@ func (p *PrimaryConn) Writer() *bufio.Writer {
 
 func (p *PrimaryConn) Reader() *bufio.Reader {
 	return p.reader
-}
-
-func (p *PrimaryConn) Close() error {
-	logging.Warnf("closing primary connection")
-	return p.conn.Close()
 }
 
 func (p *PrimaryConn) LocalAddr() string {

@@ -2,12 +2,9 @@ package workload
 
 import (
 	"diablo/core/behavior"
-	"errors"
 	"fmt"
 	"sync"
 )
-
-var emptyQueueErr = errors.New("empty queue")
 
 type Queue struct {
 	sync.RWMutex
@@ -18,12 +15,6 @@ func NewQueue(users Workload) *Queue {
 	return &Queue{
 		users: users,
 	}
-}
-
-func (q *Queue) Empty() bool {
-	q.RLock()
-	defer q.RUnlock()
-	return len(q.users) == 0
 }
 
 func (q *Queue) AddUsers(users Workload) {
@@ -37,7 +28,7 @@ func (q *Queue) GetNext(batch int) (Workload, bool) {
 	defer q.Unlock()
 
 	if len(q.users) == 0 {
-		return nil, false
+		return nil, true
 	}
 
 	if batch > len(q.users) {

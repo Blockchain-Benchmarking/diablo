@@ -38,7 +38,7 @@ func (s *Secondary) Run() error {
 
 	s.PrimaryConn = network.NewPrimaryConn(conn)
 
-	logging.Debugf("wait for primary parameters")
+	logging.Debugf("wait for primary parameters at address %s", s.PrimaryConn.LocalAddr())
 
 	//read init message from primary connection
 	msg, err := s.PrimaryConn.Read()

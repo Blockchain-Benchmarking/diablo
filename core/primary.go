@@ -60,7 +60,19 @@ func (p *Primary) Run() (behavior.Results, error) {
 		return nil, fmt.Errorf("coordinator for workload '%s' not found", p.Setup.Workload)
 	}
 
-	return t.Coordinator.Run(secondaries, p.Accounts, p.Setup.User.Name, p.Setup.Interface, p.Setup.User.Params, p.Setup.Workload.Params)
+	res, err := t.Coordinator.Run(secondaries, p.Accounts, p.Setup.User.Name, p.Setup.Interface, p.Setup.User.Params, p.Setup.Workload.Params)
+	if err != nil {
+		return nil, fmt.Errorf("failed during coordinator run: %w", err)
+	}
+
+	for _, sec := range secondaries {
+		err := sec.Close()
+		if err != nil {
+			logging.Errorf("failed to close connection %s: %s", sec.Addr(), err.Error())
+		}
+	}
+
+	return res, nil
 }
 
 func (p *Primary) acceptSecondaries() ([]*network.Secondary, error) {

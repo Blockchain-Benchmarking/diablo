@@ -3,7 +3,6 @@ package payment
 import (
 	"context"
 	"diablo/core/behavior"
-	"diablo/core/logging"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum"
@@ -12,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"math/big"
-	"strconv"
 	"time"
 )
 
@@ -37,7 +35,7 @@ func NewEthereumPaymentApplication(config behavior.Config) (PaymentApplication, 
 }
 
 func (e *EthereumPaymentApplication) Pay(to string, amount float64, timeout time.Duration) error {
-	logging.Infof("transfering %f from %s to %s", amount, e.Address, to)
+	//logging.Infof("transfering %f from %s to %s", amount, e.Address, to)
 	privateKey, err := crypto.HexToECDSA(e.PrivateKey)
 	if err != nil {
 		return fmt.Errorf("failed to convert private key: %w", err)
@@ -46,13 +44,10 @@ func (e *EthereumPaymentApplication) Pay(to string, amount float64, timeout time
 	address := common.HexToAddress(e.Address)
 	toAddress := common.HexToAddress(to)
 
-	logging.Infof("getting nonce at %s", address.String())
 	nonce, err := e.client.PendingNonceAt(context.Background(), address)
 	if err != nil {
 		return fmt.Errorf("failed to get nonce: %w", err)
 	}
-
-	logging.Infof("received nonce " + strconv.Itoa(int(nonce)))
 
 	gasPrice, err := e.client.SuggestGasPrice(context.Background())
 	if err != nil {
@@ -83,7 +78,7 @@ func (e *EthereumPaymentApplication) Pay(to string, amount float64, timeout time
 		return err
 	}
 
-	logging.Debugf("sending transaction")
+	//logging.Debugf("sending transaction")
 	err = e.client.SendTransaction(context.Background(), signedTx)
 	if err != nil {
 		return err
@@ -92,14 +87,14 @@ func (e *EthereumPaymentApplication) Pay(to string, amount float64, timeout time
 	hash := signedTx.Hash()
 	start := time.Now()
 
-	logging.Infof("waiting for receipt " + hash.String())
+	//logging.Debugf("waiting for receipt " + hash.String())
 
 	for {
 		time.Sleep(time.Millisecond)
 
-		receipt, err := e.client.TransactionReceipt(context.Background(), hash)
+		_, err := e.client.TransactionReceipt(context.Background(), hash)
 		if err == nil {
-			logging.Infof("transaction status: %d", receipt.Status)
+			//logging.Infof("transaction status: %d", receipt.Status)
 			break
 		}
 
