@@ -22,8 +22,7 @@ type User interface {
 
 type Results interface {
 	Encode() ([]byte, error)
-	Send(dest *bufio.Writer) error
-	Receive(src *bufio.Reader) error
+	Decode(src *bufio.Reader) error
 	Merge(other Results) Results
 	PrintResult(dest io.Writer) error
 }

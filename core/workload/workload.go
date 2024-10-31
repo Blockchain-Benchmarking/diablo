@@ -5,28 +5,14 @@ import (
 	"bytes"
 	"diablo/core/behavior"
 	"diablo/core/logging"
-	"diablo/core/network"
 	"diablo/core/payment"
 	"encoding/binary"
 	"fmt"
 	"io"
-	"sync"
 )
 
-var Workloads = map[string]Tuple{
-	"simple": {
-		&SimpleCoordinator{},
-		&SimpleGenerator{},
-	},
-
-	"dynamic": {
-		&DynamicCoordinator{},
-		&DynamicGenerator{},
-	},
-}
-
 type UserTools struct {
-	Init         func(implementation string, config behavior.Config, params map[string]interface{}) (behavior.User, error)
+	Init         func(implementation string, config behavior.Config, transactions int, params map[string]interface{}) (behavior.User, error)
 	EmptyUser    func() behavior.User
 	EmptyResults func() behavior.Results
 }
@@ -42,14 +28,6 @@ var Users = map[string]UserTools{
 type Tuple struct {
 	Coordinator
 	Generator
-}
-
-type Coordinator interface {
-	Run(secondaries []*network.Secondary, accounts []behavior.Account, user string, blockchain string, userParams map[string]interface{}, workloadParams map[string]interface{}) (behavior.Results, error)
-}
-
-type Generator interface {
-	Run(primary *network.PrimaryConn, wg *sync.WaitGroup)
 }
 
 type Workload []behavior.User
@@ -98,13 +76,10 @@ func (w *Workload) Send(dest *bufio.Writer) error {
 }
 
 func (w *Workload) Receive(src *bufio.Reader) error {
-	logging.Debugf("decoding user info workload")
 	userType, err := decodeString(src)
 	if err != nil {
 		return fmt.Errorf("failed to decode usertype: %w", err)
 	}
-
-	logging.Debugf("found user type %s", userType)
 
 	tools, ok := Users[userType]
 	if !ok {
@@ -117,7 +92,7 @@ func (w *Workload) Receive(src *bufio.Reader) error {
 		return err
 	}
 
-	logging.Infof("found length %d", count)
+	logging.Infof("received %d %s users", count, userType)
 
 	*w = make(Workload, count)
 

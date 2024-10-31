@@ -2,7 +2,6 @@ package messaging
 
 type Workload struct {
 	Users []byte `json:"users"`
-	Done  bool   `json:"done"`
 }
 
 func (Workload) Empty() Message {

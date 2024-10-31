@@ -53,10 +53,9 @@ func (s *Secondary) Run() error {
 
 	logging.Debugf("primary init message received")
 
-	//create coordinator and handling goroutine
-	t, ok := workload.Workloads[primaryMsg.Workload]
-	if !ok {
-		return fmt.Errorf("tuple for workload %s not found", primaryMsg.Workload)
+	g, err := workload.NewGenerator(s.PrimaryConn, primaryMsg.Duration)
+	if err != nil {
+		return fmt.Errorf("failed to create generator: %w", err)
 	}
 
 	logging.Debugf("running generator")
@@ -64,7 +63,7 @@ func (s *Secondary) Run() error {
 	//create generator
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
-	go t.Generator.Run(s.PrimaryConn, wg)
+	go g.Run(wg)
 
 	logging.Infof("sending secondary init message")
 
@@ -75,7 +74,7 @@ func (s *Secondary) Run() error {
 		return fmt.Errorf("failed to send secondary init message: %w", err)
 	}
 
-	logging.Infof("waiting for coordinator")
+	logging.Infof("waiting for generator to stop")
 
 	wg.Wait()
 

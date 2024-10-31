@@ -2,7 +2,6 @@ package payment
 
 import (
 	"diablo/core/behavior"
-	"diablo/core/logging"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -26,12 +25,7 @@ type StubbornPaymentUser struct {
 	App PaymentApplication
 }
 
-func NewStubbornPaymentUser(implementation string, config behavior.Config, params map[string]interface{}) (behavior.User, error) {
-	transactions, ok := params["transactions"].(int)
-	if !ok {
-		return nil, fmt.Errorf("params 'transactions' should be specified")
-	}
-
+func NewStubbornPaymentUser(implementation string, config behavior.Config, transactions int, params map[string]interface{}) (behavior.User, error) {
 	timeoutString, ok := params["timeout"].(string)
 	if !ok {
 		return nil, fmt.Errorf("params 'timeout' should be specified")
@@ -63,7 +57,7 @@ func EmptyStubbornPaymentUser() behavior.User {
 }
 
 func EmptyStubbornPaymentResult() behavior.Results {
-	return &behavior.StubbornResult{}
+	return &behavior.SingleUserStubbornResult{}
 }
 
 func (s *StubbornPaymentUser) Name() string {
@@ -71,7 +65,7 @@ func (s *StubbornPaymentUser) Name() string {
 }
 
 func (s *StubbornPaymentUser) Run(wg *sync.WaitGroup, results chan behavior.Results) {
-	res := make(behavior.SingleUserStubbornResult, s.Transactions)
+	res := &behavior.SingleUserStubbornResult{}
 
 	defer func() {
 		results <- res
@@ -79,10 +73,8 @@ func (s *StubbornPaymentUser) Run(wg *sync.WaitGroup, results chan behavior.Resu
 	}()
 
 	for i := 0; i < int(s.Transactions); i++ {
-		res[i] = s.executeTransaction()
+		*res = append(*res, s.executeTransaction())
 	}
-
-	logging.Infof("user finished all Transactions")
 }
 
 func (s *StubbornPaymentUser) executeTransaction() *behavior.StubbornAction {

@@ -10,12 +10,13 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 )
 
 var compress bool
-var outputFile, setupFile string
+var outputFile, setupFile, benchmark string
 var port, secondaries int
-var application, workload, user string
+var duration time.Duration
 
 // primaryCmd represents the primary command
 var primaryCmd = &cobra.Command{
@@ -29,7 +30,7 @@ var primaryCmd = &cobra.Command{
 
 		core.SetVerbosity(verbosity)
 
-		p, err := core.NewPrimary(port, secondaries, setupFile, accountsFile)
+		p, err := core.NewPrimary(port, secondaries, benchmark, setupFile, accountsFile, duration)
 		cobra.CheckErr(err)
 
 		if outputFile != "" {
@@ -70,9 +71,8 @@ func init() {
 
 	primaryCmd.Flags().IntVar(&secondaries, "secondaries", 0, "number of secondaries")
 
-	primaryCmd.Flags().StringVar(&application, "application", "", "application to benchmark")
-	primaryCmd.Flags().StringVar(&user, "user", "", "user / other application param") //change this to another param
-	primaryCmd.Flags().StringVar(&workload, "workload", "", "workload type")
+	primaryCmd.Flags().StringVar(&benchmark, "benchmark", "simple", "benchmark to use")
+	primaryCmd.Flags().DurationVarP(&duration, "duration", "d", time.Minute*2, "experiment duration")
 
 	//TODO mark mandatory flags
 }

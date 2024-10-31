@@ -2,31 +2,28 @@ package core
 
 import (
 	"diablo/core/behavior"
+	"diablo/core/benchmark"
 	"diablo/core/logging"
 	"diablo/core/network"
-	"diablo/core/workload"
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"net"
 	"os"
 	"strings"
+	"time"
 )
 
 type Primary struct {
-	workload.Coordinator
-
 	NumSecondary int
-	Setup        *Setup
+	SetupFile    string
 	Accounts     []behavior.Account
 	ListenPort   int
+	Benchmark    string
+	Duration     time.Duration
 }
 
-func NewPrimary(port int, secondary int, setupPath string, accountsPath string) (*Primary, error) {
+func NewPrimary(port int, secondary int, benchmark string, setupPath string, accountsPath string, duration time.Duration) (*Primary, error) {
 	logging.Debugf("parse setup file '%s'", setupPath)
-	newSetup, err := ParseSetup(setupPath)
-	if err != nil {
-		return nil, err
-	}
 
 	accBytes, err := os.ReadFile(accountsPath)
 	if err != nil {
@@ -42,8 +39,10 @@ func NewPrimary(port int, secondary int, setupPath string, accountsPath string) 
 	return &Primary{
 		NumSecondary: secondary,
 		ListenPort:   port,
-		Setup:        newSetup,
+		SetupFile:    setupPath,
 		Accounts:     accounts,
+		Benchmark:    benchmark,
+		Duration:     duration,
 	}, nil
 }
 
@@ -54,40 +53,43 @@ func (p *Primary) Run() (behavior.Results, error) {
 		return nil, err
 	}
 
-	// select coordinator and send workload
-	t, ok := workload.Workloads[p.Setup.Workload.Name]
-	if !ok {
-		return nil, fmt.Errorf("coordinator for workload '%s' not found", p.Setup.Workload)
-	}
-
-	res, err := t.Coordinator.Run(secondaries, p.Accounts, p.Setup.User.Name, p.Setup.Interface, p.Setup.User.Params, p.Setup.Workload.Params)
-	if err != nil {
-		return nil, fmt.Errorf("failed during coordinator run: %w", err)
-	}
-
-	for _, sec := range secondaries {
-		err := sec.Close()
-		if err != nil {
-			logging.Errorf("failed to close connection %s: %s", sec.Addr(), err.Error())
+	defer func() {
+		for _, sec := range secondaries {
+			err := sec.Close()
+			if err != nil {
+				logging.Errorf("failed to close connection %s: %s", sec.Addr(), err.Error())
+			}
 		}
+	}()
+
+	c, ok := benchmark.Benchmarks[p.Benchmark]
+	if !ok {
+		return nil, fmt.Errorf("could not find benchmark %s", p.Benchmark)
+	}
+
+	b, err := c(p.SetupFile, secondaries)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := b.Run(p.Accounts, p.Duration)
+	if err != nil {
+		return nil, fmt.Errorf("failed during benchmark run: %w", err)
 	}
 
 	return res, nil
 }
 
-func (p *Primary) acceptSecondaries() ([]*network.Secondary, error) {
-	var laddr, raddr string
-	var remoteSecondaries []*network.Secondary
+func (p *Primary) acceptSecondaries() (map[string]*network.Secondary, error) {
 	var listener net.Listener
 	var conn net.Conn
 	var err error
 	var done bool
-	var i int
 
-	laddr = fmt.Sprintf("0.0.0.0:%d", p.ListenPort)
-	remoteSecondaries = make([]*network.Secondary, p.NumSecondary)
+	laddr := fmt.Sprintf("0.0.0.0:%d", p.ListenPort)
+	remoteSecondaries := make(map[string]*network.Secondary, p.NumSecondary)
 
-	logging.Debugf("listen for %d secondary connections on %s", len(remoteSecondaries), laddr)
+	logging.Debugf("listen for %d secondary connections on %s", p.NumSecondary, laddr)
 	listener, err = net.Listen("tcp", laddr)
 	if err != nil {
 		return nil, err
@@ -103,33 +105,33 @@ func (p *Primary) acceptSecondaries() ([]*network.Secondary, error) {
 			return
 		}
 
-		for i = range remoteSecondaries {
-			if remoteSecondaries[i] == nil {
+		for addr, s := range remoteSecondaries {
+			if s == nil {
 				continue
 			}
 
-			logging.Debugf("close connection from %s", remoteSecondaries[i].Addr())
-			remoteSecondaries[i].Close()
+			logging.Debugf("close connection from %s", addr)
+			s.Close()
 		}
 	}()
 
-	for i = range remoteSecondaries {
+	for i := 0; i < p.NumSecondary; i++ {
 		logging.Tracef("wait for connection on %s", laddr)
 		conn, err = listener.Accept()
 		if err != nil {
 			return nil, err
 		}
 
-		raddr = conn.RemoteAddr().String()
+		raddr := conn.RemoteAddr().String()
 		logging.Debugf("new secondary connection from %s", raddr)
 
-		remoteSecondaries[i], err = network.NewRemoteSecondary(conn, p.Setup.Workload.Name)
+		remoteSecondaries[conn.RemoteAddr().String()], err = network.NewRemoteSecondary(conn, p.Duration)
 		if err != nil {
 			conn.Close()
 			return nil, err
 		}
 
-		logging.Tracef("secondary %s tags: [%s]", raddr, strings.Join(remoteSecondaries[i].Tags(), ", "))
+		logging.Tracef("secondary %s tags: [%s]", raddr, strings.Join(remoteSecondaries[conn.RemoteAddr().String()].Tags(), ", "))
 	}
 
 	done = true

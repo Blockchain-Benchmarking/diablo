@@ -6,6 +6,7 @@ import (
 	"diablo/core/messaging"
 	"fmt"
 	"net"
+	"time"
 )
 
 type Secondary struct {
@@ -13,12 +14,12 @@ type Secondary struct {
 	params *messaging.SecondaryInitMessage
 }
 
-func NewRemoteSecondary(conn net.Conn, workload string) (*Secondary, error) {
+func NewRemoteSecondary(conn net.Conn, duration time.Duration) (*Secondary, error) {
 	var secondary Secondary
 
 	secondary.conn = newSecondaryConn(conn)
 
-	err := secondary.Send(messaging.PrimaryInitMessage{Workload: workload})
+	err := secondary.Send(messaging.PrimaryInitMessage{Duration: duration.String()})
 	if err != nil {
 		return nil, fmt.Errorf("failed to send primary init message: %w", err)
 	}
