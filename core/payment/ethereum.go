@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"math"
 	"math/big"
 	"time"
 )
@@ -54,9 +55,8 @@ func (e *EthereumPaymentApplication) Pay(to string, amount float64, timeout time
 		return fmt.Errorf("failed to get gas price: %w", err)
 	}
 
-	gasLimit := uint64(21000)
-	//1 eth
-	value := big.NewInt(1000000000000000000)
+	gasLimit := uint64(21000) //TODO ?
+	value := big.NewInt(int64(amount * math.Pow(10, 18)))
 
 	tx := types.NewTx(
 		&types.LegacyTx{

@@ -3,6 +3,7 @@ package core
 import (
 	"diablo/core/behavior"
 	"diablo/core/benchmark"
+	"diablo/core/benchmark/simple"
 	"diablo/core/logging"
 	"diablo/core/network"
 	"fmt"
@@ -12,6 +13,10 @@ import (
 	"strings"
 	"time"
 )
+
+var Benchmarks = map[string]func(setupPath string, secondaries map[string]*network.Secondary) (benchmark.Benchmark, error){
+	"simple": simple.NewSimpleBenchmark,
+}
 
 type Primary struct {
 	NumSecondary int
@@ -62,7 +67,7 @@ func (p *Primary) Run() (behavior.Results, error) {
 		}
 	}()
 
-	c, ok := benchmark.Benchmarks[p.Benchmark]
+	c, ok := Benchmarks[p.Benchmark]
 	if !ok {
 		return nil, fmt.Errorf("could not find benchmark %s", p.Benchmark)
 	}
@@ -76,6 +81,8 @@ func (p *Primary) Run() (behavior.Results, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed during benchmark run: %w", err)
 	}
+
+	b.StopCoordinator()
 
 	return res, nil
 }

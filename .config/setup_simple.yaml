@@ -4,7 +4,7 @@ user:
   params:
     timeout: "3s"
     max_retries: 5
-tps: 1
+tps: 10
 endpoints:
   - "ws://127.0.0.1:9000"
   - "ws://127.0.0.1:9001"

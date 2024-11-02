@@ -11,7 +11,7 @@ var PaymentApplications = map[string]func(config behavior.Config) (PaymentApplic
 
 type UserTools struct {
 	name   string
-	create func(appName string, config behavior.Config, params map[string]interface{}) (behavior.User, error)
+	create func(duration time.Duration, appName string, config behavior.Config, params map[string]interface{}) (behavior.User, error)
 }
 
 type PaymentApplication interface {

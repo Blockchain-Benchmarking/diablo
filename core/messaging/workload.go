@@ -12,28 +12,6 @@ func (Workload) Type() string {
 	return WorkloadType
 }
 
-type More struct {
-	Source string `json:"source"`
-}
-
-func (More) Empty() Message {
-	return &More{}
-}
-
-func (More) Type() string {
-	return MoreType
-}
-
-type Stop struct{}
-
-func (Stop) Empty() Message {
-	return &Stop{}
-}
-
-func (Stop) Type() string {
-	return StopType
-}
-
 type Results struct {
 	Results []byte `json:"results"`
 }
@@ -44,4 +22,19 @@ func (Results) Empty() Message {
 
 func (Results) Type() string {
 	return ResultsType
+}
+
+type Status struct {
+	Timestamp    int64 `json:"timestamp"`
+	CpuUsage     int   `json:"cpu_usage"`
+	MemUsage     int   `json:"mem_usage"`
+	UsersRunning int   `json:"users_running"`
+}
+
+func (Status) Empty() Message {
+	return &Status{}
+}
+
+func (Status) Type() string {
+	return StatusType
 }

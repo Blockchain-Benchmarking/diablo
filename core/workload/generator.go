@@ -9,6 +9,7 @@ import (
 	"diablo/core/network"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 )
@@ -18,9 +19,11 @@ type Generator struct {
 	primary *network.PrimaryConn
 	execs   map[string]func(msg messaging.Message) error
 
+	start    chan time.Time
 	duration time.Duration
 	users    chan behavior.User
 	results  chan behavior.Results
+	stop     chan struct{}
 }
 
 func NewGenerator(primary *network.PrimaryConn, duration string) (*Generator, error) {
@@ -34,8 +37,10 @@ func NewGenerator(primary *network.PrimaryConn, duration string) (*Generator, er
 		primary: primary,
 
 		duration: d,
-		users:    make(chan behavior.User),
+		users:    make(chan behavior.User, 100000),
 		results:  make(chan behavior.Results),
+		start:    make(chan time.Time, 1),
+		stop:     make(chan struct{}),
 	}
 
 	g.registerExecs()
@@ -59,6 +64,7 @@ func (g *Generator) resultsCollector() {
 	defer g.wg.Done()
 
 	for res := range g.results {
+		logging.Infof("sending result to primary")
 		buf, err := res.Encode()
 		if err != nil {
 			logging.Errorf("Failed to encode results: %v", err)
@@ -78,10 +84,38 @@ func (g *Generator) usersRunner() {
 
 	userWg := &sync.WaitGroup{}
 
-	for user := range g.users {
-		//TODO add timer / duration
-		userWg.Add(1)
-		go user.Run(userWg, g.results)
+	once := sync.OnceFunc(func() {
+		logging.Infof("start users timer")
+		timer := time.NewTimer(g.duration)
+		go func() {
+			<-timer.C
+			logging.Infof("close stop users channel")
+			close(g.stop)
+		}()
+	})
+
+	startTime := <-g.start
+	logging.Infof("received start time: " + startTime.String())
+	waitingTime := time.Until(startTime)
+
+	if waitingTime > 0 {
+		logging.Infof(waitingTime.String() + " until start")
+		time.Sleep(waitingTime)
+		logging.Infof("starting users runner")
+	} else {
+		logging.Infof("starting users runner with %s delay", (-1 * waitingTime).String())
+	}
+
+loop:
+	for {
+		select {
+		case <-g.stop:
+			break loop
+		case user := <-g.users:
+			once()
+			userWg.Add(1)
+			go user.Run(userWg, g.results, g.stop)
+		}
 	}
 
 	logging.Infof("wait for users")
@@ -95,27 +129,39 @@ func (g *Generator) messagesHandler() {
 	defer g.wg.Done()
 
 	for {
-		msg, err := network.ReadMessage(g.primary.Reader()) //todo
-		if err != nil {
-			logging.Errorf("error receiving message: %s", err.Error())
+		select {
+		case <-g.stop:
 			return
-		}
+		default:
+			msg, err := network.ReadMessageWithTimeout(g.primary.Conn(), 3*time.Second) //todo
+			if err != nil {
+				if strings.Contains(err.Error(), "EOF") {
+					logging.Warnf("EOF from primary")
+					return
+				} else if errors.Is(err, network.ErrTimeout) || strings.Contains(err.Error(), "timeout") {
+					continue
+				}
+				logging.Fatalf("error receiving message from: %s", err.Error())
+				continue
+			}
 
-		logging.Infof("received message type %s", msg.Type())
+			logging.Infof("received %s message", msg.Type())
 
-		if msg.Type() == messaging.StopType {
-			close(g.users)
-			return
-		}
+			/**
+			if msg.Type() == messaging.StopType {
+				close(g.users)
+				return
+			}*/
 
-		exec, ok := g.execs[msg.Type()]
-		if !ok {
-			panic(fmt.Sprintf("unknown workload message type %s", msg.Type()))
-		}
+			exec, ok := g.execs[msg.Type()]
+			if !ok {
+				panic(fmt.Sprintf("unknown workload message type %s", msg.Type()))
+			}
 
-		err = exec(msg)
-		if err != nil {
-			panic(fmt.Sprintf("error executing workload message %s: %s", msg.Type(), err.Error()))
+			err = exec(msg)
+			if err != nil {
+				panic(fmt.Sprintf("error executing workload message %s: %s", msg.Type(), err.Error()))
+			}
 		}
 	}
 }
@@ -133,6 +179,8 @@ func (g *Generator) processWorkloadMessage(msg messaging.Message) error {
 			return fmt.Errorf("failed to decode workload: %w", err)
 		}
 
+		//TODO
+
 		for _, u := range *workload {
 			g.users <- u
 		}
@@ -141,7 +189,21 @@ func (g *Generator) processWorkloadMessage(msg messaging.Message) error {
 	return nil
 }
 
+func (g *Generator) processStartMessage(msg messaging.Message) error {
+	logging.Infof("processing start message")
+
+	startMsg, ok := msg.(*messaging.Start)
+	if !ok {
+		return fmt.Errorf("invalid Start message %v", msg)
+	}
+
+	g.start <- time.Unix(startMsg.Start, 0)
+	logging.Infof("finished processing start message")
+	return nil
+}
+
 func (g *Generator) registerExecs() {
 	g.execs = make(map[string]func(msg messaging.Message) error)
 	g.execs[messaging.WorkloadType] = g.processWorkloadMessage
+	g.execs[messaging.StartType] = g.processStartMessage
 }

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 )
 
 type Coordinator struct {
@@ -50,7 +51,7 @@ func NewCoordinator(secondaries map[string]*network.Secondary, emptyResult func(
 	return c
 }
 
-func (c *Coordinator) LaunchUsers(s *network.Secondary, users Workload) error {
+func (c *Coordinator) SendUsers(s *network.Secondary, users Workload) error {
 	buf, err := users.encode()
 	if err != nil {
 		return fmt.Errorf("failed to encode workload: %w", err)
@@ -63,6 +64,17 @@ func (c *Coordinator) LaunchUsers(s *network.Secondary, users Workload) error {
 	}
 
 	c.currentUsers += len(users)
+	return nil
+}
+
+func (c *Coordinator) SendStartToAll(startTime time.Time) error {
+	logging.Infof("sending start message to secondaries with start time = " + startTime.String())
+	for addr, secondary := range c.secondaries {
+		err := secondary.Send(messaging.Start{Start: startTime.Unix()})
+		if err != nil {
+			return fmt.Errorf("failed to send start to %s: %w", addr, err)
+		}
+	}
 	return nil
 }
 
@@ -86,7 +98,10 @@ func (c *Coordinator) processResultsMessage(msg messaging.Message) error {
 	c.currentUsers--
 
 	if c.currentUsers == 0 {
+		logging.Infof("all users done")
 		c.usersDone <- struct{}{}
+	} else {
+		logging.Infof("still waiting for %d users", c.currentUsers)
 	}
 
 	return nil
@@ -95,23 +110,30 @@ func (c *Coordinator) processResultsMessage(msg messaging.Message) error {
 // CollectResults returns the results of the launched users after the last call to CollectResults
 func (c *Coordinator) CollectResults() behavior.Results {
 	<-c.usersDone
+	logging.Infof("returning with results")
 	return c.results
 }
 
 func (c *Coordinator) Stop() {
 	close(c.stop)
+	/**
 	for addr, s := range c.secondaries {
 		logging.Infof("sending stop signal to %s", addr)
 		err := s.Send(messaging.Stop{})
 		if err != nil {
 			logging.Errorf("failed to send stop signal to %s: %v", addr, err)
 		}
-	}
+	}*/
+	logging.Infof("coordinator waiting for goroutines")
 	c.wg.Wait()
+	logging.Infof("coordinator done")
 }
 
 func (c *Coordinator) handleGeneratorMessages(s *network.Secondary) {
-	defer c.wg.Done()
+	defer func() {
+		logging.Infof("finished with handling gen message")
+		c.wg.Done()
+	}()
 
 	for {
 		select {
@@ -119,11 +141,13 @@ func (c *Coordinator) handleGeneratorMessages(s *network.Secondary) {
 			logging.Infof("stop receiving messages")
 			return
 		default:
-			msg, err := network.ReadMessage(s.Reader()) //todo
+			msg, err := network.ReadMessageWithTimeout(s.Conn(), time.Second) //todo
 			if err != nil {
 				if strings.Contains(err.Error(), "EOF") {
 					logging.Warnf("EOF from %s", s.Addr())
 					return
+				} else if errors.Is(err, network.ErrTimeout) || strings.Contains(err.Error(), "timeout") {
+					continue
 				}
 				logging.Fatalf("error receiving message from %s: %s", s.Addr(), err.Error())
 				continue
@@ -133,6 +157,8 @@ func (c *Coordinator) handleGeneratorMessages(s *network.Secondary) {
 			if !ok {
 				panic(fmt.Sprintf("unknown workload message type %s", msg.Type()))
 			}
+
+			logging.Infof("received message type %s", msg.Type())
 
 			err = exec(msg)
 			if err != nil {

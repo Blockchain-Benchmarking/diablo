@@ -15,7 +15,7 @@ type Account struct {
 
 type User interface {
 	Name() string
-	Run(wg *sync.WaitGroup, results chan Results)
+	Run(wg *sync.WaitGroup, results chan Results, stop chan struct{})
 	Encode(dest io.Writer) error
 	Decode(src io.Reader) error
 }

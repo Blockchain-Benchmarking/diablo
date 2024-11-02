@@ -25,7 +25,7 @@ func (p *PrimaryConn) Send(msg messaging.Message) error {
 }
 
 func (p *PrimaryConn) Read() (messaging.Message, error) {
-	return ReadMessage(p.reader)
+	return ReadMessageWithTimeout(p.conn, 0)
 }
 
 func (p *PrimaryConn) Writer() *bufio.Writer {
@@ -34,6 +34,10 @@ func (p *PrimaryConn) Writer() *bufio.Writer {
 
 func (p *PrimaryConn) Reader() *bufio.Reader {
 	return p.reader
+}
+
+func (p *PrimaryConn) Conn() net.Conn {
+	return p.conn
 }
 
 func (p *PrimaryConn) LocalAddr() string {

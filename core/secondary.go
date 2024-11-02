@@ -15,7 +15,7 @@ type Secondary struct {
 	Tags        []string
 
 	PrimaryConn   *network.PrimaryConn
-	PrimaryParams *messaging.PrimaryInitMessage
+	PrimaryParams *messaging.PrimaryInit
 }
 
 func NewSecondary(primary string, tags []string) (*Secondary, error) {
@@ -46,7 +46,7 @@ func (s *Secondary) Run() error {
 		return fmt.Errorf("cannot read from primary connection: %w", err)
 	}
 
-	primaryMsg, ok := msg.(*messaging.PrimaryInitMessage)
+	primaryMsg, ok := msg.(*messaging.PrimaryInit)
 	if !ok {
 		return fmt.Errorf("primary init message type got %s", msg.Type())
 	}
@@ -68,7 +68,7 @@ func (s *Secondary) Run() error {
 	logging.Infof("sending secondary init message")
 
 	//send init message back to primary
-	secondaryMsg := messaging.SecondaryInitMessage{Tags: s.Tags}
+	secondaryMsg := messaging.SecondaryInit{Tags: s.Tags}
 	err = s.PrimaryConn.Send(&secondaryMsg)
 	if err != nil {
 		return fmt.Errorf("failed to send secondary init message: %w", err)

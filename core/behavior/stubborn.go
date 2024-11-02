@@ -23,7 +23,7 @@ type StubbornAction struct {
 }
 
 // type StubbornResult []SingleUserStubbornResult
-type SingleUserStubbornResult []*StubbornAction
+type SingleUserStubbornResult []StubbornAction
 
 func (s *SingleUserStubbornResult) Decode(src *bufio.Reader) error {
 	var userResultLength int32
@@ -32,7 +32,7 @@ func (s *SingleUserStubbornResult) Decode(src *bufio.Reader) error {
 	}
 
 	for i := int32(0); i < userResultLength; i++ {
-		action := &StubbornAction{}
+		action := StubbornAction{}
 
 		if err := binary.Read(src, binary.LittleEndian, &action.StartTime); err != nil {
 			return fmt.Errorf("failed to read submit time at %d: %w", i, err)
@@ -114,14 +114,17 @@ func NewStubbornBehavior(maxRetries int32) *StubbornBehavior {
 	return &StubbornBehavior{maxRetries}
 }
 
-func (s *StubbornBehavior) PerformStubbornAction(f func() error) *StubbornAction {
-	action := &StubbornAction{}
+func (s *StubbornBehavior) PerformStubbornAction(f func() error) StubbornAction {
+	action := StubbornAction{}
 	action.StartTime = time.Now().Unix()
+	//logging.Infof("starting transaction")
 
 	var err error
 	for i := 0; i < int(s.MaxRetries); i++ {
+		//logging.Infof("attempt " + strconv.Itoa(i+1))
 		err = f()
 		if err == nil {
+			//logging.Infof("success at attempt " + strconv.Itoa(i+1))
 			action.SuccessTime = time.Now().Unix()
 			return action
 		}
@@ -129,6 +132,7 @@ func (s *StubbornBehavior) PerformStubbornAction(f func() error) *StubbornAction
 		action.Retries++
 	}
 
+	//logging.Infof("failed")
 	action.FinalFailureTime = time.Now().Unix()
 	action.HasError = true
 

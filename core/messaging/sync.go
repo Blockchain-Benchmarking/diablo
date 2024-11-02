@@ -1,27 +1,39 @@
 package messaging
 
-// PrimaryInitMessage indicates which generator should be used by the secondary
-type PrimaryInitMessage struct {
+// PrimaryInit indicates which generator should be used by the secondary
+type PrimaryInit struct {
 	Duration string `json:"duration"`
 }
 
-func (PrimaryInitMessage) Empty() Message {
-	return &PrimaryInitMessage{}
+func (PrimaryInit) Empty() Message {
+	return &PrimaryInit{}
 }
 
-func (PrimaryInitMessage) Type() string {
+func (PrimaryInit) Type() string {
 	return PrimaryInitType
 }
 
-// SecondaryInitMessage indicates that secondary's generator is ready to handle workload messages
-type SecondaryInitMessage struct {
+// SecondaryInit indicates that secondary's generator is ready to handle workload messages
+type SecondaryInit struct {
 	Tags []string `json:"tags"`
 }
 
-func (SecondaryInitMessage) Empty() Message {
-	return &SecondaryInitMessage{}
+func (SecondaryInit) Empty() Message {
+	return &SecondaryInit{}
 }
 
-func (SecondaryInitMessage) Type() string {
+func (SecondaryInit) Type() string {
 	return SecondaryInitType
+}
+
+type Start struct {
+	Start int64 `json:"start"`
+}
+
+func (Start) Empty() Message {
+	return &Start{}
+}
+
+func (Start) Type() string {
+	return StartType
 }

@@ -11,7 +11,7 @@ import (
 
 type Secondary struct {
 	conn   *secondaryConn
-	params *messaging.SecondaryInitMessage
+	params *messaging.SecondaryInit
 }
 
 func NewRemoteSecondary(conn net.Conn, duration time.Duration) (*Secondary, error) {
@@ -19,7 +19,7 @@ func NewRemoteSecondary(conn net.Conn, duration time.Duration) (*Secondary, erro
 
 	secondary.conn = newSecondaryConn(conn)
 
-	err := secondary.Send(messaging.PrimaryInitMessage{Duration: duration.String()})
+	err := secondary.Send(messaging.PrimaryInit{Duration: duration.String()})
 	if err != nil {
 		return nil, fmt.Errorf("failed to send primary init message: %w", err)
 	}
@@ -35,7 +35,7 @@ func NewRemoteSecondary(conn net.Conn, duration time.Duration) (*Secondary, erro
 	}
 
 	logging.Debugf("received init message from secondary")
-	secondary.params = msg.(*messaging.SecondaryInitMessage)
+	secondary.params = msg.(*messaging.SecondaryInit)
 
 	return &secondary, nil
 }
@@ -45,7 +45,7 @@ func (s *Secondary) Send(msg messaging.Message) error {
 }
 
 func (s *Secondary) Read() (messaging.Message, error) {
-	return ReadMessage(s.conn.reader)
+	return ReadMessageWithTimeout(s.conn.conn, 0)
 }
 
 func (s *Secondary) Tags() []string {
@@ -58,6 +58,10 @@ func (s *Secondary) Addr() string {
 
 func (s *Secondary) Close() error {
 	return s.conn.Close()
+}
+
+func (s *Secondary) Conn() net.Conn {
+	return s.conn.conn
 }
 
 func (s *Secondary) Reader() *bufio.Reader {

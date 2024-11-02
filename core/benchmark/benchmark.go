@@ -2,19 +2,15 @@ package benchmark
 
 import (
 	"diablo/core/behavior"
-	"diablo/core/network"
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"os"
 	"time"
 )
 
-var Benchmarks = map[string]func(setupPath string, secondaries map[string]*network.Secondary) (Benchmark, error){
-	"simple": NewSimpleBenchmark,
-}
-
 type Benchmark interface {
 	Run(accounts []behavior.Account, duration time.Duration) (behavior.Results, error)
+	StopCoordinator()
 }
 
 func ParseSetup(setupPath string, setup interface{}) error {

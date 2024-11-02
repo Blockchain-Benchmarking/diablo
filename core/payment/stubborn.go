@@ -2,6 +2,7 @@ package payment
 
 import (
 	"diablo/core/behavior"
+	"diablo/core/logging"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -17,7 +18,7 @@ type StubbornPaymentUser struct {
 	// Encodable
 	Implementation string
 	Config         behavior.Config
-	Transactions   int32
+	Tps            int32
 	Timeout        time.Duration
 	Stubborn       *behavior.StubbornBehavior
 
@@ -25,7 +26,7 @@ type StubbornPaymentUser struct {
 	App PaymentApplication
 }
 
-func NewStubbornPaymentUser(implementation string, config behavior.Config, transactions int, params map[string]interface{}) (behavior.User, error) {
+func NewStubbornPaymentUser(implementation string, config behavior.Config, tps int, params map[string]interface{}) (behavior.User, error) {
 	timeoutString, ok := params["timeout"].(string)
 	if !ok {
 		return nil, fmt.Errorf("params 'timeout' should be specified")
@@ -44,7 +45,7 @@ func NewStubbornPaymentUser(implementation string, config behavior.Config, trans
 	u := &StubbornPaymentUser{
 		Implementation: implementation,
 		Config:         config,
-		Transactions:   int32(transactions),
+		Tps:            int32(tps),
 		Timeout:        timeout,
 		Stubborn:       behavior.NewStubbornBehavior(int32(maxRetries)),
 	}
@@ -64,20 +65,44 @@ func (s *StubbornPaymentUser) Name() string {
 	return STUBBORN_PAYMENT_USER
 }
 
-func (s *StubbornPaymentUser) Run(wg *sync.WaitGroup, results chan behavior.Results) {
+func (s *StubbornPaymentUser) Run(wg *sync.WaitGroup, results chan behavior.Results, stop chan struct{}) {
 	res := &behavior.SingleUserStubbornResult{}
 
 	defer func() {
+		logging.Infof("user exits with %d results", len(*res))
 		results <- res
 		wg.Done()
 	}()
 
-	for i := 0; i < int(s.Transactions); i++ {
-		*res = append(*res, s.executeTransaction())
+	logging.Infof("running with tps %d", s.Tps)
+
+	transactionsWg := &sync.WaitGroup{}
+	for i := 0; i < int(s.Tps); i++ {
+		transactionsWg.Add(1)
+		go func() {
+			*res = append(*res, s.executeTransaction())
+			transactionsWg.Done()
+		}()
+	}
+
+	for {
+		select {
+		case <-stop:
+			logging.Debugf("user receievd stop signal")
+			return
+		case <-time.After(1 * time.Second):
+			for i := 0; i < int(s.Tps); i++ {
+				transactionsWg.Add(1)
+				go func() {
+					*res = append(*res, s.executeTransaction())
+					transactionsWg.Done()
+				}()
+			}
+		}
 	}
 }
 
-func (s *StubbornPaymentUser) executeTransaction() *behavior.StubbornAction {
+func (s *StubbornPaymentUser) executeTransaction() behavior.StubbornAction {
 	var to string
 	var amount float64
 
@@ -97,7 +122,7 @@ func (s *StubbornPaymentUser) executeTransaction() *behavior.StubbornAction {
 
 // Encode implements User
 func (s *StubbornPaymentUser) Encode(dest io.Writer) error {
-	err := binary.Write(dest, binary.LittleEndian, s.Transactions)
+	err := binary.Write(dest, binary.LittleEndian, s.Tps)
 	if err != nil {
 		return fmt.Errorf("failed to write StubbornUser Transactions %d: %w", s.Timeout, err)
 	}
@@ -132,7 +157,7 @@ func (s *StubbornPaymentUser) Encode(dest io.Writer) error {
 
 // Decode implements User
 func (s *StubbornPaymentUser) Decode(src io.Reader) error {
-	err := binary.Read(src, binary.LittleEndian, &s.Transactions)
+	err := binary.Read(src, binary.LittleEndian, &s.Tps)
 	if err != nil {
 		return fmt.Errorf("failed to read StubbornUser Transactions: %w", err)
 	}

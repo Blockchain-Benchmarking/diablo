@@ -12,7 +12,7 @@ import (
 )
 
 type UserTools struct {
-	Init         func(implementation string, config behavior.Config, transactions int, params map[string]interface{}) (behavior.User, error)
+	Init         func(implementation string, config behavior.Config, tps int, params map[string]interface{}) (behavior.User, error)
 	EmptyUser    func() behavior.User
 	EmptyResults func() behavior.Results
 }

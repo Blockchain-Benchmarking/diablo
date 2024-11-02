@@ -6,7 +6,6 @@ import (
 )
 
 // Verbosity setting
-
 const (
 	VERBOSITY_SILENT  int = 0
 	VERBOSITY_FATAL   int = 1

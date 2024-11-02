@@ -5,9 +5,14 @@ import (
 	"diablo/core/messaging"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
+	"time"
 )
+
+var ErrTimeout = errors.New("timeout")
 
 func SendMessage(dst *bufio.Writer, msg messaging.Message) error {
 	buf, err := json.Marshal(msg)
@@ -44,11 +49,74 @@ func SendMessage(dst *bufio.Writer, msg messaging.Message) error {
 	return nil
 }
 
-func ReadMessage(src *bufio.Reader) (messaging.Message, error) {
+/*func ReceiveWithTimeout(src *bufio.Reader, timeout time.Duration) (messaging.Message, error) {
+	lengthCtx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	var msg messaging.Message
+	done := make(chan error, 1)
+
+	go func() {
+		m, err := ReadMessage(src)
+		msg = m
+		done <- err
+	}()
+
+	select {
+	case <-lengthCtx.Done():
+		return nil, ErrTimeout
+	case err := <-done:
+		if err != nil {
+			return nil, fmt.Errorf("failed to read message length: %w", err)
+		}
+	}
+
+	return msg, nil
+}*/
+
+func ReadMessageWithTimeout(conn net.Conn, timeout time.Duration) (messaging.Message, error) {
 	var length int32
+
+	if timeout != 0 {
+		err := conn.SetReadDeadline(time.Now().Add(timeout))
+		if err != nil {
+			return nil, fmt.Errorf("failed to set read deadline: %w", err)
+		}
+	}
+
+	src := bufio.NewReader(conn)
+
+	//if timeout == 0 {
 	err := binary.Read(src, binary.LittleEndian, &length)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read message length: %w", err)
+	}
+	/**} else {
+		lengthCtx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+
+		done := make(chan error, 1)
+
+		go func() {
+			done <- binary.Read(src, binary.LittleEndian, &length)
+		}()
+
+		select {
+		case <-lengthCtx.Done():
+			return nil, ErrTimeout
+		case err := <-done:
+			if err != nil {
+				return nil, fmt.Errorf("failed to read message length: %w", err)
+			}
+		}
+	}
+	*/
+
+	if timeout != 0 {
+		err = conn.SetReadDeadline(time.Time{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to reset read deadline: %w", err)
+		}
 	}
 
 	packetBytes := make([]byte, length)

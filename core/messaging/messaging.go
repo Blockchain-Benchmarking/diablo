@@ -4,20 +4,22 @@ const (
 	PrimaryInitType   = "pinit"
 	SecondaryInitType = "sinit"
 
+	StartType = "start"
+
 	WorkloadType = "workload"
-	MoreType     = "more"
-	StopType     = "stop"
 	ResultsType  = "results"
+	StatusType   = "status"
 )
 
 var Messages = map[string]Message{
-	PrimaryInitType:   PrimaryInitMessage{},
-	SecondaryInitType: SecondaryInitMessage{},
+	PrimaryInitType:   PrimaryInit{},
+	SecondaryInitType: SecondaryInit{},
+
+	StartType: Start{},
 
 	WorkloadType: Workload{},
-	MoreType:     More{},
-	StopType:     Stop{},
 	ResultsType:  Results{},
+	StatusType:   Status{},
 }
 
 type Message interface {
