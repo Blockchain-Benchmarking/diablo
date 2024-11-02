@@ -45,7 +45,7 @@ func (s *Secondary) Send(msg messaging.Message) error {
 }
 
 func (s *Secondary) Read() (messaging.Message, error) {
-	return ReadMessageWithTimeout(s.conn.conn, 0)
+	return ReadMessageWithTimeout(s.Reader(), 0)
 }
 
 func (s *Secondary) Tags() []string {

@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"time"
 )
 
@@ -74,7 +73,8 @@ func SendMessage(dst *bufio.Writer, msg messaging.Message) error {
 	return msg, nil
 }*/
 
-func ReadMessageWithTimeout(conn net.Conn, timeout time.Duration) (messaging.Message, error) {
+func ReadMessageWithTimeout(src *bufio.Reader, timeout time.Duration) (messaging.Message, error) {
+	/**
 	var length int32
 
 	if timeout != 0 {
@@ -84,13 +84,21 @@ func ReadMessageWithTimeout(conn net.Conn, timeout time.Duration) (messaging.Mes
 		}
 	}
 
-	src := bufio.NewReader(conn)
+	buf := make([]byte, 4)
+	_, err := conn.Read(buf[:])
+	if err != nil {
+		return nil, err
+	}
+
+	length = int32(binary.LittleEndian.Uint32(buf))*/
+
+	//	src := bufio.NewReader(conn)
 
 	//if timeout == 0 {
-	err := binary.Read(src, binary.LittleEndian, &length)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read message length: %w", err)
-	}
+	//err := binary.Read(src, binary.LittleEndian, &length)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to read message length: %w", err)
+	//}
 	/**} else {
 		lengthCtx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
@@ -112,11 +120,18 @@ func ReadMessageWithTimeout(conn net.Conn, timeout time.Duration) (messaging.Mes
 	}
 	*/
 
+	/**
 	if timeout != 0 {
 		err = conn.SetReadDeadline(time.Time{})
 		if err != nil {
 			return nil, fmt.Errorf("failed to reset read deadline: %w", err)
 		}
+	}*/
+
+	var length int32
+	err := binary.Read(src, binary.LittleEndian, &length)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read message length: %w", err)
 	}
 
 	packetBytes := make([]byte, length)

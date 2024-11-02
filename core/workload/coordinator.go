@@ -31,7 +31,7 @@ func NewCoordinator(secondaries map[string]*network.Secondary, emptyResult func(
 	wg := &sync.WaitGroup{}
 	c := &Coordinator{
 		wg:   wg,
-		stop: make(chan struct{}, 1),
+		stop: make(chan struct{}),
 
 		secondaries: secondaries,
 
@@ -141,7 +141,7 @@ func (c *Coordinator) handleGeneratorMessages(s *network.Secondary) {
 			logging.Infof("stop receiving messages")
 			return
 		default:
-			msg, err := network.ReadMessageWithTimeout(s.Conn(), time.Second) //todo
+			msg, err := network.ReadMessageWithTimeout(s.Reader(), 0) //todo
 			if err != nil {
 				if strings.Contains(err.Error(), "EOF") {
 					logging.Warnf("EOF from %s", s.Addr())

@@ -76,6 +76,7 @@ func (g *Generator) resultsCollector() {
 		}
 	}
 
+	g.primary.Conn().Close()
 	logging.Infof("results collector done")
 }
 
@@ -131,9 +132,10 @@ func (g *Generator) messagesHandler() {
 	for {
 		select {
 		case <-g.stop:
+			logging.Infof("exiting messages handler")
 			return
 		default:
-			msg, err := network.ReadMessageWithTimeout(g.primary.Conn(), 3*time.Second) //todo
+			msg, err := network.ReadMessageWithTimeout(g.primary.Reader(), 0) //todo
 			if err != nil {
 				if strings.Contains(err.Error(), "EOF") {
 					logging.Warnf("EOF from primary")

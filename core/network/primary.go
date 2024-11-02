@@ -25,7 +25,7 @@ func (p *PrimaryConn) Send(msg messaging.Message) error {
 }
 
 func (p *PrimaryConn) Read() (messaging.Message, error) {
-	return ReadMessageWithTimeout(p.conn, 0)
+	return ReadMessageWithTimeout(p.Reader(), 0)
 }
 
 func (p *PrimaryConn) Writer() *bufio.Writer {
