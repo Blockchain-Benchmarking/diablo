@@ -2,7 +2,8 @@ package payment
 
 import (
 	"context"
-	"diablo/core/behavior"
+	"diablo/core/logging"
+	"diablo/workload/behavior"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum"
@@ -12,18 +13,21 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"math"
 	"math/big"
+	"sync/atomic"
 	"time"
 )
 
 type EthereumPaymentApplication struct {
 	client *ethclient.Client
 	behavior.Config
+	nonce atomic.Uint64
 }
 
 // NewEthereumPaymentApplication creates a new ethereum payment application instance
 func NewEthereumPaymentApplication(config behavior.Config) (PaymentApplication, error) {
 	app := &EthereumPaymentApplication{
 		Config: config,
+		nonce:  atomic.Uint64{},
 	}
 
 	var err error
@@ -31,6 +35,13 @@ func NewEthereumPaymentApplication(config behavior.Config) (PaymentApplication, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Ethereum client: %v", err)
 	}
+
+	nonce, err := app.client.PendingNonceAt(context.Background(), common.HexToAddress(app.Address))
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch initial nonce: %w", err)
+	}
+
+	app.nonce.Store(nonce)
 
 	return app, nil
 }
@@ -45,22 +56,46 @@ func (e *EthereumPaymentApplication) Pay(to string, amount float64, timeout time
 	address := common.HexToAddress(e.Address)
 	toAddress := common.HexToAddress(to)
 
+	value := new(big.Int)
+	value.SetString(fmt.Sprintf("%.0f", amount*math.Pow(10, 18)), 10)
+
+	balance, err := e.client.BalanceAt(context.Background(), address, nil)
+	if err != nil {
+		return fmt.Errorf("failed to get account balance: %w", err)
+	}
+
+	gasLimit := uint64(21000)
+	gasPrice, err := e.client.SuggestGasPrice(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to get gas price: %w", err)
+	}
+
+	gasCost := new(big.Int).Mul(gasPrice, big.NewInt(int64(gasLimit)))
+	totalCost := new(big.Int).Add(value, gasCost)
+
+	if balance.Cmp(totalCost) < 0 {
+		logging.Errorf("insufficient funds: balance=%s, required=%s", balance.String(), totalCost.String())
+		return fmt.Errorf("insufficient funds: balance=%s, required=%s", balance.String(), totalCost.String())
+	}
+
+	/**
 	nonce, err := e.client.PendingNonceAt(context.Background(), address)
 	if err != nil {
 		return fmt.Errorf("failed to get nonce: %w", err)
-	}
+	}*/
 
+	/**
 	gasPrice, err := e.client.SuggestGasPrice(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to get gas price: %w", err)
 	}
 
 	gasLimit := uint64(21000) //TODO ?
-	value := big.NewInt(int64(amount * math.Pow(10, 18)))
+	value := big.NewInt(int64(amount * math.Pow(10, 18)))*/
 
 	tx := types.NewTx(
 		&types.LegacyTx{
-			Nonce:    nonce,
+			Nonce:    e.nonce.Add(1) - 1,
 			GasPrice: gasPrice,
 			Gas:      gasLimit,
 			To:       &toAddress,
@@ -100,7 +135,7 @@ func (e *EthereumPaymentApplication) Pay(to string, amount float64, timeout time
 
 		if errors.Is(err, ethereum.NotFound) {
 			if time.Since(start) > timeout {
-				return errors.New("transaction not mined within timeout")
+				return behavior.TimeoutError
 			}
 			continue
 		}

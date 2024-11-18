@@ -1,10 +1,10 @@
-package core
+package nodes
 
 import (
+	"diablo/core"
 	"diablo/core/logging"
 	"diablo/core/messaging"
 	"diablo/core/network"
-	"diablo/core/workload"
 	"fmt"
 	"net"
 	"sync"
@@ -53,7 +53,7 @@ func (s *Secondary) Run() error {
 
 	logging.Debugf("primary init message received")
 
-	g, err := workload.NewGenerator(s.PrimaryConn, primaryMsg.Duration)
+	g, err := core.NewGenerator(s.PrimaryConn, primaryMsg.Duration)
 	if err != nil {
 		return fmt.Errorf("failed to create generator: %w", err)
 	}

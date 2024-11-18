@@ -1,7 +1,7 @@
 package payment
 
 import (
-	"diablo/core/behavior"
+	"diablo/workload/behavior"
 	"time"
 )
 

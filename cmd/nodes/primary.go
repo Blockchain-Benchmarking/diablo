@@ -1,11 +1,11 @@
-package core
+package nodes
 
 import (
-	"diablo/core/behavior"
-	"diablo/core/benchmark"
-	"diablo/core/benchmark/simple"
+	"diablo/benchmark"
+	"diablo/core"
 	"diablo/core/logging"
 	"diablo/core/network"
+	"diablo/workload/behavior"
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"net"
@@ -14,22 +14,20 @@ import (
 	"time"
 )
 
-var Benchmarks = map[string]func(setupPath string, secondaries map[string]*network.Secondary) (benchmark.Benchmark, error){
-	"simple": simple.NewSimpleBenchmark,
-}
-
 type Primary struct {
 	NumSecondary int
-	SetupFile    string
+	ConfigFile   string
 	Accounts     []behavior.Account
 	ListenPort   int
-	Benchmark    string
 	Duration     time.Duration
+
+	Benchmark string
+	//if simple benchmark:
+	Tps       int
+	Endpoints []string
 }
 
-func NewPrimary(port int, secondary int, benchmark string, setupPath string, accountsPath string, duration time.Duration) (*Primary, error) {
-	logging.Debugf("parse setup file '%s'", setupPath)
-
+func NewPrimary(port int, secondary int, benchmark string, configPath string, accountsPath string, duration time.Duration, tps int, endpoints []string) (*Primary, error) {
 	accBytes, err := os.ReadFile(accountsPath)
 	if err != nil {
 		return nil, err
@@ -44,14 +42,17 @@ func NewPrimary(port int, secondary int, benchmark string, setupPath string, acc
 	return &Primary{
 		NumSecondary: secondary,
 		ListenPort:   port,
-		SetupFile:    setupPath,
+		ConfigFile:   configPath,
 		Accounts:     accounts,
-		Benchmark:    benchmark,
 		Duration:     duration,
+
+		Benchmark: benchmark,
+		Tps:       tps,
+		Endpoints: endpoints,
 	}, nil
 }
 
-func (p *Primary) Run() (behavior.Results, error) {
+func (p *Primary) Run() ([]behavior.Result, error) {
 	logging.Debugf("wait for %d secondary connections", p.NumSecondary)
 	secondaries, err := p.acceptSecondaries()
 	if err != nil {
@@ -67,22 +68,35 @@ func (p *Primary) Run() (behavior.Results, error) {
 		}
 	}()
 
-	c, ok := Benchmarks[p.Benchmark]
-	if !ok {
-		return nil, fmt.Errorf("could not find benchmark %s", p.Benchmark)
+	var b benchmark.Benchmark
+	switch p.Benchmark {
+	case "simple":
+		b, err = benchmark.NewSimpleBenchmark(p.Tps, p.Endpoints)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create benchmark: %s", err)
+		}
+
+		if p.ConfigFile != "" {
+			err = benchmark.ParseSimpleConfig(b, p.ConfigFile)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse config file: %s", err)
+			}
+		}
+
+	case "custom":
+		b = &benchmark.CustomBenchmark{}
+	default:
+		return nil, fmt.Errorf("unknown benchmark: %s", p.Benchmark)
 	}
 
-	b, err := c(p.SetupFile, secondaries)
-	if err != nil {
-		return nil, err
-	}
-
-	res, err := b.Run(p.Accounts, p.Duration)
+	coordinator := core.NewCoordinator(secondaries)
+	err = b.Run(p.Accounts, p.Duration, secondaries, coordinator)
 	if err != nil {
 		return nil, fmt.Errorf("failed during benchmark run: %w", err)
 	}
 
-	b.StopCoordinator()
+	res := coordinator.CollectResults()
+	coordinator.Stop()
 
 	return res, nil
 }

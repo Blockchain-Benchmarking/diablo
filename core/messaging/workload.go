@@ -1,7 +1,21 @@
 package messaging
 
+type Users struct {
+	Users    map[string][]byte `json:"users"` //userType -> users
+	Workload Workload          `json:"workload"`
+}
+
+func (Users) Empty() Message {
+	return &Users{}
+}
+
+func (Users) Type() string {
+	return UsersType
+}
+
 type Workload struct {
-	Users []byte `json:"users"`
+	Name     string            `json:"name"`
+	Schedule map[string][]byte `json:"workload"` //userID -> workload
 }
 
 func (Workload) Empty() Message {
@@ -13,6 +27,7 @@ func (Workload) Type() string {
 }
 
 type Results struct {
+	Name    string `json:"name"`
 	Results []byte `json:"results"`
 }
 
@@ -24,11 +39,13 @@ func (Results) Type() string {
 	return ResultsType
 }
 
+/**
 type Status struct {
 	Timestamp    int64 `json:"timestamp"`
 	CpuUsage     int   `json:"cpu_usage"`
 	MemUsage     int   `json:"mem_usage"`
 	UsersRunning int   `json:"users_running"`
+	//transactions fail
 }
 
 func (Status) Empty() Message {
@@ -37,4 +54,4 @@ func (Status) Empty() Message {
 
 func (Status) Type() string {
 	return StatusType
-}
+}*/

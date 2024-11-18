@@ -5,15 +5,21 @@ package cmd
 
 import (
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 )
 
 const (
-	PORT_DEFAULT int = 5000
+	defaultPort     int           = 5000
+	defaultDuration time.Duration = 2 * time.Minute
 
-	MAX_DELAY_DEFAULT float64 = 1.0
-	MAX_SKEW_DEFAULT  float64 = 0.2
+	defaultBenchmark = "simple"
+	defaultTps       = 2000
+)
+
+var (
+	defaultEndpoints = []string{"ws://127.0.0.1:9000", "ws://127.0.0.1:9001", "ws://127.0.0.1:9002"}
 )
 
 var accountsFile string

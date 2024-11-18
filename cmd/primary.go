@@ -5,7 +5,10 @@ package cmd
 
 import (
 	"compress/gzip"
+	"diablo/cmd/nodes"
 	"diablo/core"
+	"diablo/core/logging"
+	"encoding/json"
 	"github.com/spf13/cobra"
 	"io"
 	"os"
@@ -14,9 +17,15 @@ import (
 )
 
 var compress bool
-var outputFile, setupFile, benchmark string
+var outputFile, benchmark string
 var port, secondaries int
 var duration time.Duration
+var configFile string
+
+var tps int
+var endpoints []string
+
+//var simpleFlags SimpleFlags
 
 // primaryCmd represents the primary command
 var primaryCmd = &cobra.Command{
@@ -30,7 +39,7 @@ var primaryCmd = &cobra.Command{
 
 		core.SetVerbosity(verbosity)
 
-		p, err := core.NewPrimary(port, secondaries, benchmark, setupFile, accountsFile, duration)
+		p, err := nodes.NewPrimary(port, secondaries, benchmark, configFile, accountsFile, duration, tps, endpoints)
 		cobra.CheckErr(err)
 
 		if outputFile != "" {
@@ -54,7 +63,18 @@ var primaryCmd = &cobra.Command{
 		result, err := p.Run()
 		cobra.CheckErr(err)
 
-		err = result.PrintResult(output)
+		logging.Infof("writing results in output")
+
+		for _, res := range result {
+			buf, err := json.Marshal(res)
+			cobra.CheckErr(err)
+			_, err = output.Write(buf)
+			cobra.CheckErr(err)
+		}
+
+		logging.Infof("primary done")
+
+		err = output.Close()
 		cobra.CheckErr(err)
 	},
 }
@@ -66,13 +86,17 @@ func init() {
 		"Add a '.gz' suffix to the output path is not already present.")
 	primaryCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Write results in the file instead of "+
 		"printing on standard output.")
-	primaryCmd.Flags().StringVar(&setupFile, "setup", "", "setup file")
-	primaryCmd.Flags().IntVarP(&port, "port", "p", PORT_DEFAULT, "Port to listen for Diablo secondary nodes on.")
+	primaryCmd.Flags().IntVarP(&port, "port", "p", defaultPort, "Port to listen for Diablo secondary nodes on.")
 
 	primaryCmd.Flags().IntVar(&secondaries, "secondaries", 0, "number of secondaries")
 
-	primaryCmd.Flags().StringVar(&benchmark, "benchmark", "simple", "benchmark to use")
-	primaryCmd.Flags().DurationVarP(&duration, "duration", "d", time.Minute*2, "experiment duration")
+	primaryCmd.Flags().StringVar(&benchmark, "benchmark", defaultBenchmark, "benchmark to use")
+	primaryCmd.Flags().DurationVarP(&duration, "duration", "d", defaultDuration, "experiment duration")
+
+	primaryCmd.Flags().StringVar(&configFile, "config", "", "config file")
+
+	primaryCmd.Flags().IntVar(&tps, "tps", defaultTps, "transactions per second")
+	primaryCmd.Flags().StringArrayVarP(&endpoints, "endpoints", "e", defaultEndpoints, "endpoints")
 
 	//TODO mark mandatory flags
 }

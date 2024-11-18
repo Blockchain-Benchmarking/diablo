@@ -4,6 +4,7 @@ Copyright © 2024 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"diablo/cmd/nodes"
 	"diablo/core"
 	"fmt"
 	"github.com/spf13/cobra"
@@ -21,7 +22,7 @@ var secondaryCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		core.SetVerbosity(verbosity)
 
-		secondary, err := core.NewSecondary(prim, tags)
+		secondary, err := nodes.NewSecondary(prim, tags)
 		cobra.CheckErr(err)
 
 		err = secondary.Run()
@@ -33,5 +34,5 @@ func init() {
 	rootCmd.AddCommand(secondaryCmd)
 
 	secondaryCmd.Flags().StringSliceVarP(&tags, "tags", "t", nil, "Attach given tags to the node.")
-	secondaryCmd.Flags().StringVar(&prim, "primary", fmt.Sprintf("127.0.0.1:%d", PORT_DEFAULT), "Primary address.")
+	secondaryCmd.Flags().StringVar(&prim, "primary", fmt.Sprintf("127.0.0.1:%d", defaultPort), "Primary address.")
 }
