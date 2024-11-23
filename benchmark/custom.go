@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	maxLatencyDiff = 30
+	maxLatencyDiff = 30 * time.Second
 )
 
 type CustomBenchmark struct {
@@ -23,11 +23,16 @@ type Coordinates struct {
 	Latency    time.Duration `json:"Latency"`
 }
 
-func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, secondaries map[string]*network.Secondary, coordinator *core.Coordinator) error {
-	endpoints := []string{"ws://127.0.0.1:9000", "ws://127.0.0.1:9001", "ws://127.0.0.1:9002"}
+func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, secondaries map[string]*network.Secondary, coordinator *core.Coordinator, endpoints []string) error {
+	var tps, tpsFactor float64
+	tps = 200
+	tpsFactor = 2
+
 	users, err := createUsersFromAccounts(accounts, "stubbornPaymentUser", "ethereum", endpoints, map[string]interface{}{
 		"timeout":      "60s",
 		"max_attempts": 1,
+		"random":       true,
+		"tps":          int(tps),
 	})
 
 	if err != nil {
@@ -37,8 +42,7 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 	graph := make(map[int]Coordinates) //tps -> (latency, throughput)
 
 	//Send all the users with initial workload of x tps for a certain duration
-	tps := 200
-	err = coordinator.SendUsersToGenerators(tps, time.Minute, users)
+	err = coordinator.SendUsersToGenerators(users)
 	if err != nil {
 		return err
 	}
@@ -50,9 +54,9 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 
 	time.Sleep(3 * time.Second)
 
-	var previousTps int
+	var previousTps float64
 	for {
-		time.Sleep(1 * time.Minute)
+		time.Sleep(2 * time.Minute)
 
 		res := coordinator.CollectNewResults()
 		logging.Infof("intermediary %d results", len(res))
@@ -62,7 +66,7 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 			Latency:    behavior.AverageLatency(res),
 		}
 
-		graph[tps] = curPerf
+		graph[int(tps)] = curPerf
 
 		logging.Infof("TPS: %d, Throughput: %d, Latency: %s", tps, curPerf.Throughput, curPerf.Latency.String())
 
@@ -71,20 +75,41 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 		}
 
 		if len(graph) > 1 {
-			previous := graph[previousTps]
+			previous := graph[int(previousTps)]
 			ldiff := curPerf.Latency - previous.Latency
-			_ = curPerf.Throughput - previous.Throughput
+			tdiff := curPerf.Throughput - previous.Throughput
 
-			if ldiff.Seconds() > maxLatencyDiff {
+			if ldiff > maxLatencyDiff {
 				logging.Warnf("latency difference reached %s", ldiff.String())
-				break
+				tpsFactor = 0.8
+			} else if tdiff <= 0 {
+				logging.Warnf("throughput difference stagnated or decreased (%d), reducing tps", tdiff)
+				tpsFactor = 0.9
+			} else {
+				tpsFactor = 2
+				logging.Infof("performance improving increasing tps")
 			}
 		}
 
 		previousTps = tps
-		tps = tps + 200
+		tps = tps * tpsFactor
 
-		err = coordinator.UpdateAllUsersTps(tps, time.Minute)
+		updatedUsers, err := createUsersFromAccounts(accounts, "stubbornPaymentUser", "ethereum", endpoints, map[string]interface{}{
+			"timeout":      "60s",
+			"max_attempts": 1,
+			"random":       true,
+			"tps":          int(tps),
+		})
+
+		if err != nil {
+			return err
+		}
+
+		err = coordinator.SendUsersToGenerators(updatedUsers)
+		if err != nil {
+			return err
+		}
+
 	}
 
 	err = coordinator.SendStopToAll()

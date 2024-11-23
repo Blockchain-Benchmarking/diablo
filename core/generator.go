@@ -21,8 +21,9 @@ type Generator struct {
 	start    chan time.Time
 	duration time.Duration
 
-	allUsers []behavior.User
-	users    chan behavior.User
+	runningUsers map[string]behavior.User
+
+	users chan behavior.User
 
 	results   chan behavior.Result
 	batchSize int
@@ -41,12 +42,12 @@ func NewGenerator(primary *network.PrimaryConn, duration string) (*Generator, er
 		wg:      &sync.WaitGroup{},
 		primary: primary,
 
-		duration: d,
-		allUsers: make([]behavior.User, 0),
-		users:    make(chan behavior.User, 100000), //TODO why is this channel buffered ?
-		results:  make(chan behavior.Result),
-		start:    make(chan time.Time, 1),
-		stop:     make(chan struct{}),
+		duration:     d,
+		runningUsers: make(map[string]behavior.User),   //user IDs => user
+		users:        make(chan behavior.User, 100000), //TODO why is this channel buffered ?
+		results:      make(chan behavior.Result),
+		start:        make(chan time.Time, 1),
+		stop:         make(chan struct{}),
 	}
 
 	g.registerExecs()
@@ -161,11 +162,25 @@ loop:
 		case <-g.stop:
 			break loop
 		case user := <-g.users:
-			logging.Infof("got user")
+			//logging.Infof("got user")
 			once()
-			userWg.Add(1)
-			logging.Infof("started user")
-			go user.Run(userWg, g.results, g.stop)
+			u, ok := g.runningUsers[user.ID()]
+			if !ok {
+				userWg.Add(1)
+				g.runningUsers[user.ID()] = user
+				go func() {
+					user.Run(userWg, g.results, g.stop)
+				}()
+				//logging.Infof("started new user")
+			} else {
+				//logging.Infof("restarting user %s", user.ID())
+				go func() {
+					err := u.Restart(user)
+					if err != nil {
+						logging.Errorf("failed to restart user: %s", err.Error())
+					}
+				}()
+			}
 		}
 	}
 
@@ -218,26 +233,6 @@ func (g *Generator) messagesHandler() {
 	}
 }
 
-func unmarshalWorkloadMessage(msg messaging.Workload) (map[string]behavior.Schedule, error) {
-	sc, ok := Schedules[msg.Name]
-	if !ok {
-		return nil, fmt.Errorf("unknown workload schedule %s", msg.Name)
-	}
-
-	schedules := make(map[string]behavior.Schedule)
-	for id, wk := range msg.Schedule {
-		res := sc.Empty()
-		err := json.Unmarshal(wk, &res)
-		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal workload: %w", err)
-		}
-
-		schedules[id] = res
-	}
-
-	return schedules, nil
-}
-
 func (g *Generator) processUsersMessage(msg messaging.Message) error {
 	usersMsg, ok := msg.(*messaging.Users)
 	if !ok {
@@ -261,57 +256,10 @@ func (g *Generator) processUsersMessage(msg messaging.Message) error {
 			return err
 		}
 
-		schedules, err := unmarshalWorkloadMessage(usersMsg.Workload)
-		if err != nil {
-			return err
-		}
-
 		for _, u := range users[t] {
-			if _, ok := schedules[u.ID()]; !ok {
-				continue
-			}
-
-			err := u.DeliverWorkload(schedules[u.ID()])
-			if err != nil {
-				return fmt.Errorf("failed to deliver workload for user %s: %w", u.ID(), err)
-			}
-
-			err = u.InitApp()
-			if err != nil {
-				return fmt.Errorf("failed to init app for user %s: %w", u.ID(), err)
-			}
-
-			logging.Debugf("sending user to channel")
-			g.allUsers = append(g.allUsers, u)
+			//logging.Debugf("sending user to channel")
 			g.users <- u
-			logging.Debugf("sent user to channel")
-		}
-	}
-
-	return nil
-}
-
-func (g *Generator) processWorkloadMessage(msg messaging.Message) error {
-	workloadMsg, ok := msg.(*messaging.Workload)
-	if !ok {
-		return errors.New("invalid Workload message")
-	}
-
-	wk, err := unmarshalWorkloadMessage(*workloadMsg)
-	if err != nil {
-		return err
-	}
-
-	for _, u := range g.allUsers {
-		if wk[u.ID()] == nil {
-			logging.Debugf("no workload for user %s", u.ID())
-			continue
-		}
-
-		logging.Infof("delivering workload for user %s", u.ID())
-		err = u.DeliverWorkload(wk[u.ID()])
-		if err != nil {
-			logging.Errorf("failed to deliver workload for user %s: %w", u.ID(), err)
+			//logging.Debugf("sent user to channel")
 		}
 	}
 
@@ -356,5 +304,4 @@ func (g *Generator) registerExecs() {
 	g.execs[messaging.UsersType] = g.processUsersMessage
 	g.execs[messaging.StartType] = g.processStartMessage
 	g.execs[messaging.StopType] = g.processStopMessage
-	g.execs[messaging.WorkloadType] = g.processWorkloadMessage
 }

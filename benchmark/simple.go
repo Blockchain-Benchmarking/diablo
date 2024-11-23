@@ -3,10 +3,9 @@ package benchmark
 import (
 	"diablo/core"
 	"diablo/core/logging"
-	"diablo/core/messaging"
 	"diablo/core/network"
 	"diablo/workload/behavior"
-	"encoding/json"
+	"diablo/workload/payment"
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"os"
@@ -16,7 +15,7 @@ import (
 
 const (
 	defaultBlockchain       = "ethereum"
-	defaultResultsBatchSize = 10000
+	defaultResultsBatchSize = 1
 )
 
 var (
@@ -25,6 +24,10 @@ var (
 		Params: map[string]interface{}{
 			"timeout":      "60s",
 			"max_attempts": 30,
+			"random":       true,
+			"payments":     []payment.Info{},
+			"tps":          200,
+			"duration":     0,
 		},
 	}
 )
@@ -33,7 +36,6 @@ type SimpleBenchmark struct {
 	Blockchain string `yaml:"blockchain"`
 	User       User   `yaml:"user"`
 	Tps        int    // operand
-	Endpoints  []string
 }
 
 type User struct {
@@ -41,38 +43,22 @@ type User struct {
 	Params map[string]interface{} `yaml:"params"`
 }
 
-func NewSimpleBenchmark(tps int, endpoints []string) (Benchmark, error) {
+func NewSimpleBenchmark(tps int) (Benchmark, error) {
 	return &SimpleBenchmark{
 		Blockchain: defaultBlockchain,
 		User:       defaultUser,
 		Tps:        tps,
-		Endpoints:  endpoints,
 	}, nil
 }
 
-func (s *SimpleBenchmark) Run(accounts []behavior.Account, _ time.Duration, secondaries map[string]*network.Secondary, coordinator *core.Coordinator) error {
-	wk, err := createUsersFromAccounts(accounts, s.User.Name, s.Blockchain, s.Endpoints, s.User.Params)
+func (s *SimpleBenchmark) Run(accounts []behavior.Account, _ time.Duration, secondaries map[string]*network.Secondary, coordinator *core.Coordinator, endpoints []string) error {
+	wk, err := createUsersFromAccounts(accounts, s.User.Name, s.Blockchain, endpoints, s.User.Params)
 	if err != nil {
 		return fmt.Errorf("failed to create users: %w", err)
 	}
 
 	//same schedule for everyone
 	logging.Infof("tps per user: %d", s.Tps/len(wk))
-	schedule := behavior.ScheduleRates{
-		StartTime: time.Time{},
-		Rates: []behavior.Rate{
-			{
-				0,
-				s.Tps / len(wk),
-			},
-		},
-	}
-
-	buf, err := json.Marshal(schedule)
-	if err != nil {
-		return fmt.Errorf("failed to marshal schedule: %w", err)
-	}
-
 	perSecondary := len(wk) / len(secondaries)
 	remainder := len(wk) % len(secondaries)
 
@@ -87,20 +73,15 @@ func (s *SimpleBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 		usersChunk := wk[i : i+n]
 		logging.Infof("sending %d users to %s", len(usersChunk), addr)
 
-		wkMap := make(map[string][]byte)
 		usersMap := make(map[string][]behavior.User)
 		for _, u := range usersChunk {
-			wkMap[u.ID()] = buf
 			if usersMap[u.Name()] == nil {
 				usersMap[u.Name()] = make([]behavior.User, 0)
 			}
 			usersMap[u.Name()] = append(usersMap[u.Name()], u)
 		}
 
-		err = coordinator.SendUsers(secondary, usersMap, messaging.Workload{
-			Name:     schedule.Name(),
-			Schedule: wkMap,
-		})
+		err = coordinator.SendUsers(secondary, usersMap)
 		if err != nil {
 			return fmt.Errorf("failed to launch users to secondary %s: %w", addr, err)
 		}

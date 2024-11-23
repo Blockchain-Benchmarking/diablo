@@ -15,9 +15,8 @@ type User interface {
 	Name() string
 	ID() string
 
-	InitApp() error
 	Run(wg *sync.WaitGroup, results chan Result, stop chan struct{})
-	DeliverWorkload(schedule Schedule) error
+	Restart(newParameters User) error
 }
 
 type Result interface {
@@ -95,49 +94,4 @@ type Config struct {
 	Addresses  []string `json:"addresses"`
 	PrivateKey string   `json:"private_key"`
 	Address    string   `json:"address"`
-}
-
-/**
- * Workload type
- */
-
-const (
-	ScheduleInteractionsName = "schedule-interactions"
-	ScheduleRatesName        = "schedule-rates"
-)
-
-type Schedule interface {
-	Name() string
-	Empty() Schedule
-}
-
-type ScheduleInteractions struct {
-	Interactions   [][]byte    `json:"interactions"`
-	ExecutionTimes []time.Time `json:"execution_times"`
-}
-
-func (ScheduleInteractions) Name() string {
-	return ScheduleInteractionsName
-}
-
-func (ScheduleInteractions) Empty() Schedule {
-	return &ScheduleInteractions{}
-}
-
-type ScheduleRates struct {
-	StartTime time.Time `json:"start_time"` //0 if same as benchmark
-	Rates     []Rate    `json:"rates"`
-}
-
-type Rate struct {
-	Duration time.Duration `json:"duration"` //0 if it should run as long as possible
-	Tps      int           `json:"tps"`
-}
-
-func (ScheduleRates) Name() string {
-	return ScheduleRatesName
-}
-
-func (ScheduleRates) Empty() Schedule {
-	return &ScheduleRates{}
 }

@@ -8,9 +8,8 @@ const (
 	StopType    = "stop"
 	StoppedType = "stopped"
 
-	UsersType    = "users"
-	WorkloadType = "workload"
-	ResultsType  = "results"
+	UsersType   = "users"
+	ResultsType = "results"
 	//StatusType   = "status"
 )
 
@@ -22,9 +21,8 @@ var Messages = map[string]Message{
 	StopType:    Stop{},
 	StoppedType: Stopped{},
 
-	UsersType:    Users{},
-	WorkloadType: Workload{},
-	ResultsType:  Results{},
+	UsersType:   Users{},
+	ResultsType: Results{},
 	//StatusType:   Status{},
 }
 

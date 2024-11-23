@@ -1,8 +1,7 @@
 package messaging
 
 type Users struct {
-	Users    map[string][]byte `json:"users"` //userType -> users
-	Workload Workload          `json:"workload"`
+	Users map[string][]byte `json:"users"` //userType -> users
 }
 
 func (Users) Empty() Message {
@@ -11,19 +10,6 @@ func (Users) Empty() Message {
 
 func (Users) Type() string {
 	return UsersType
-}
-
-type Workload struct {
-	Name     string            `json:"name"`
-	Schedule map[string][]byte `json:"workload"` //userID -> workload
-}
-
-func (Workload) Empty() Message {
-	return &Workload{}
-}
-
-func (Workload) Type() string {
-	return WorkloadType
 }
 
 type Results struct {

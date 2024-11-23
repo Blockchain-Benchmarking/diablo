@@ -49,69 +49,8 @@ func NewCoordinator(secondaries map[string]*network.Secondary) *Coordinator {
 	return c
 }
 
-func (c *Coordinator) UpdateAllUsersTps(tps int, duration time.Duration) error {
-	schedule := behavior.ScheduleRates{
-		StartTime: time.Time{},
-		Rates: []behavior.Rate{
-			{
-				duration,
-				tps / c.TotalUsersSent(),
-			},
-		},
-	}
-	buf, err := json.Marshal(schedule)
-	if err != nil {
-		return err
-	}
-
-	for address, secondary := range c.secondaries {
-		schedules := make(map[string][]byte)
-		for _, user := range c.usersTrack[address] {
-			schedules[user.ID()] = buf
-		}
-
-		logging.Infof("sending updated schedule to secondary %s", address)
-		err = c.SendSchedules(secondary, schedule.Name(), schedules)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// schedules: userID -> marshalled Schedule
-func (c *Coordinator) SendSchedules(secondary *network.Secondary, scheduleType string, schedules map[string][]byte) error {
-	msg := messaging.Workload{
-		Name:     scheduleType,
-		Schedule: schedules,
-	}
-
-	err := secondary.Send(msg)
-	if err != nil {
-		return fmt.Errorf("failed to send schedules to secondary %s: %w", secondary.Addr(), err)
-	}
-
-	return nil
-}
-
 // SendUsersToGenerators distributes the users equally amongst the generators
-func (c *Coordinator) SendUsersToGenerators(tps int, duration time.Duration, users []behavior.User) error {
-	schedule := behavior.ScheduleRates{
-		StartTime: time.Time{},
-		Rates: []behavior.Rate{
-			{
-				duration,
-				tps / len(users),
-			},
-		},
-	}
-
-	bufSchedule, err := json.Marshal(schedule)
-	if err != nil {
-		return fmt.Errorf("failed to marshal schedule: %w", err)
-	}
-
+func (c *Coordinator) SendUsersToGenerators(users []behavior.User) error {
 	perSecondary := len(users) / len(c.secondaries)
 	remainder := len(users) % len(c.secondaries)
 
@@ -126,21 +65,15 @@ func (c *Coordinator) SendUsersToGenerators(tps int, duration time.Duration, use
 		usersChunk := users[i : i+n]
 		logging.Infof("sending %d users to %s", len(usersChunk), addr)
 
-		wkMap := make(map[string][]byte)
 		usersMap := make(map[string][]behavior.User)
 		for _, u := range usersChunk {
-			wkMap[u.ID()] = bufSchedule
 			if usersMap[u.Name()] == nil {
 				usersMap[u.Name()] = make([]behavior.User, 0)
 			}
 			usersMap[u.Name()] = append(usersMap[u.Name()], u)
 		}
 
-		err = c.SendUsers(secondary, usersMap, messaging.Workload{
-			Name:     schedule.Name(),
-			Schedule: wkMap,
-		})
-
+		err := c.SendUsers(secondary, usersMap)
 		if err != nil {
 			return fmt.Errorf("failed to send users to secondary %s: %w", addr, err)
 		}
@@ -151,19 +84,14 @@ func (c *Coordinator) SendUsersToGenerators(tps int, duration time.Duration, use
 	return nil
 }
 
-func (c *Coordinator) SendUsers(s *network.Secondary, users map[string][]behavior.User, workloads messaging.Workload) error {
-	marshalledUsers := make(map[string][]byte)
-	for k, v := range users {
-		logging.Debugf("marshaling users type: %s", k)
-		buf, err := json.Marshal(v)
-		if err != nil {
-			return fmt.Errorf("failed to encode workload: %w", err)
-		}
-		marshalledUsers[k] = buf
+func (c *Coordinator) SendUsers(s *network.Secondary, users map[string][]behavior.User) error {
+	buf, err := marshallUsers(users)
+	if err != nil {
+		return fmt.Errorf("failed to marshal users: %w", err)
 	}
 
-	msg := messaging.Users{Users: marshalledUsers, Workload: workloads}
-	err := s.Send(msg)
+	msg := messaging.Users{Users: buf}
+	err = s.Send(msg)
 	if err != nil {
 		return fmt.Errorf("failed to send workload: %w", err)
 	}

@@ -71,7 +71,7 @@ func (p *Primary) Run() ([]behavior.Result, error) {
 	var b benchmark.Benchmark
 	switch p.Benchmark {
 	case "simple":
-		b, err = benchmark.NewSimpleBenchmark(p.Tps, p.Endpoints)
+		b, err = benchmark.NewSimpleBenchmark(p.Tps)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create benchmark: %s", err)
 		}
@@ -90,7 +90,7 @@ func (p *Primary) Run() ([]behavior.Result, error) {
 	}
 
 	coordinator := core.NewCoordinator(secondaries)
-	err = b.Run(p.Accounts, p.Duration, secondaries, coordinator)
+	err = b.Run(p.Accounts, p.Duration, secondaries, coordinator, p.Endpoints)
 	if err != nil {
 		return nil, fmt.Errorf("failed during benchmark run: %w", err)
 	}

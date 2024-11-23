@@ -13,90 +13,28 @@ import (
 
 const STUBBORN_PAYMENT_USER = "stubbornPaymentUser"
 
+// specific transaction or many trnsactions randomly at certain rate
 type StubbornPaymentUser struct {
 	Implementation string
 	Config         behavior.Config
 	Timeout        time.Duration
-	Stubborn       *behavior.StubbornBehavior
 
-	//TODO Scheduler to make users easier to implement
+	Stubborn *behavior.StubbornBehavior
 
-	Schedule *Scheduler
-	App      PaymentApplication
+	Payments []Info //Chronologically sorted list of interactions to complete or list of interactions to iterate through with below indicated tps
+
+	Random   bool          //set to true if the interactions should be random (payments must be empty)
+	Tps      int           //0 if interactions should be completed following their schedule
+	Duration time.Duration //0 if the user should run as long as possible
+
+	App       PaymentApplication
+	restartCh chan StubbornPaymentUser
 }
 
-type Scheduler struct {
-	sync.RWMutex
-	list    *LinkedRate
-	waiting []chan behavior.Rate
-}
-
-type LinkedRate struct {
-	Rate *behavior.Rate
-	Next *LinkedRate
-}
-
-func NewScheduler() *Scheduler {
-	return &Scheduler{}
-}
-
-func (s *Scheduler) Update(new behavior.ScheduleRates) {
-	s.Lock()
-	defer s.Unlock()
-
-	logging.Infof("updating schedule with %v", new)
-
-	for len(s.waiting) > 0 && len(new.Rates) > 0 {
-		promise := s.waiting[0]
-		s.waiting = s.waiting[1:]
-
-		promise <- new.Rates[0]
-		close(promise)
-
-		new.Rates = new.Rates[1:]
-	}
-
-	if s.list == nil && len(new.Rates) > 0 {
-		s.list = &LinkedRate{
-			Rate: &new.Rates[0],
-			Next: nil,
-		}
-		new.Rates = new.Rates[1:]
-	}
-
-	current := s.list
-	for current != nil && current.Next != nil {
-		current = current.Next
-	}
-
-	for _, rate := range new.Rates {
-		node := &LinkedRate{
-			Rate: &rate,
-			Next: nil,
-		}
-		current.Next = node
-		current = node
-	}
-}
-
-func (s *Scheduler) GetNextRate() (behavior.Rate, <-chan behavior.Rate, bool) {
-	s.Lock()
-	defer s.Unlock()
-
-	if s.list == nil {
-		promise := make(chan behavior.Rate, 1)
-		s.waiting = append(s.waiting, promise)
-		return behavior.Rate{}, promise, false
-	}
-
-	if s.list != nil {
-		nextRate := *s.list.Rate
-		s.list = s.list.Next
-
-		return nextRate, nil, true
-	}
-
-	return behavior.Rate{}, nil, false
+type Info struct {
+	Time   int64   `json:"time"`
+	Amount float64 `json:"amount"`
+	To     string  `json:"to"`
 }
 
 func (s *StubbornPaymentUser) New(blockchain string, config behavior.Config, params map[string]interface{}) (behavior.User, error) {
@@ -107,12 +45,36 @@ func (s *StubbornPaymentUser) New(blockchain string, config behavior.Config, par
 
 	timeout, err := time.ParseDuration(timeoutString)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse 'timeout' parameter '%s': %w", timeoutString, err)
+		return nil, fmt.Errorf("invalid timeout format: %s", timeoutString)
 	}
 
 	maxRetries, ok := params["max_attempts"].(int)
 	if !ok {
 		return nil, fmt.Errorf("params 'maxRetries' should be specified")
+	}
+
+	random, ok := params["random"].(bool)
+	if !ok {
+		return nil, fmt.Errorf("params 'random' should be specified")
+	}
+
+	payments, ok := params["payments"].([]Info)
+	if !ok {
+		payments = make([]Info, 0)
+	}
+
+	tps, ok := params["tps"].(int)
+	if !ok {
+		return nil, fmt.Errorf("params 'tps' should be specified")
+	}
+
+	duration := time.Duration(0)
+	durationString, ok := params["duration"].(string)
+	if ok {
+		duration, err = time.ParseDuration(durationString)
+		if err != nil {
+			return nil, fmt.Errorf("invalid duration format: %s", durationString)
+		}
 	}
 
 	u := &StubbornPaymentUser{
@@ -121,10 +83,25 @@ func (s *StubbornPaymentUser) New(blockchain string, config behavior.Config, par
 		Timeout:        timeout,
 		Stubborn:       behavior.NewStubbornBehavior(int32(maxRetries)),
 
-		Schedule: NewScheduler(),
+		Random:    random,
+		Payments:  payments,
+		Tps:       tps,
+		Duration:  duration,
+		restartCh: make(chan StubbornPaymentUser),
 	}
 
 	return u, nil
+}
+
+func (s *StubbornPaymentUser) resetParameters(newParameters StubbornPaymentUser) {
+	s.Implementation = newParameters.Implementation
+	s.Config = newParameters.Config
+	s.Timeout = newParameters.Timeout
+	s.Stubborn = newParameters.Stubborn
+	s.Random = newParameters.Random
+	s.Payments = newParameters.Payments
+	s.Tps = newParameters.Tps
+	s.Duration = newParameters.Duration
 }
 
 func (s *StubbornPaymentUser) Empty() behavior.User {
@@ -150,34 +127,12 @@ func (s *StubbornPaymentUser) ID() string {
 	return s.Config.Id
 }
 
-func (s *StubbornPaymentUser) InitApp() error {
-	init := PaymentApplications[strings.ToLower(s.Implementation)]
-	app, err := init(s.Config)
-	if err != nil {
-		return err
-	}
-
-	s.App = app
-
-	return nil
-}
-
 func (s *StubbornPaymentUser) EmptyResult() behavior.Result {
 	return &behavior.StubbornAction{}
 }
 
 func (s *StubbornPaymentUser) Name() string {
 	return STUBBORN_PAYMENT_USER
-}
-
-func (s *StubbornPaymentUser) DeliverWorkload(schedule behavior.Schedule) error {
-	rates, ok := schedule.(*behavior.ScheduleRates)
-	if !ok {
-		return fmt.Errorf("schedule type %s is not supported for StubbornPaymentUser", schedule.Name())
-	}
-
-	s.Schedule.Update(*rates)
-	return nil
 }
 
 func tickerChannel(t *time.Ticker) <-chan time.Time {
@@ -188,27 +143,40 @@ func tickerChannel(t *time.Ticker) <-chan time.Time {
 }
 
 func (s *StubbornPaymentUser) Run(wg *sync.WaitGroup, results chan behavior.Result, stop chan struct{}) {
-	defer func() {
-		wg.Done()
-	}()
+	defer wg.Done()
 
-	currentRate, promise, ok := s.Schedule.GetNextRate()
-	if !ok {
-		currentRate = <-promise
+reset:
+	init := PaymentApplications[strings.ToLower(s.Implementation)]
+	app, err := init(s.Config)
+	if err != nil {
+		logging.Errorf("failed to init user app: %s", err.Error())
+		return
+	}
+
+	s.App = app
+
+	//Scheduled run
+	if s.Tps == 0 {
+		s.runSchedule(results)
+		return
 	}
 
 	var ticker *time.Ticker
-	if currentRate.Duration == 0 {
-		ticker = nil
-	} else {
-		ticker = time.NewTicker(currentRate.Duration)
+	if s.Duration > 0 {
+		ticker = time.NewTicker(s.Duration)
 	}
 
+	currentTransaction := 0
 	transactionsWg := &sync.WaitGroup{}
-	for i := 0; i < currentRate.Tps; i++ {
+	for i := 0; i < s.Tps; i++ {
 		transactionsWg.Add(1)
 		go func() {
-			results <- s.randomTransaction()
+			if s.Random {
+				results <- s.executeTransaction(s.randomTransaction())
+			} else {
+				results <- s.executeTransaction(s.Payments[i%len(s.Payments)])
+				currentTransaction++
+			}
 			transactionsWg.Done()
 		}()
 	}
@@ -216,38 +184,44 @@ func (s *StubbornPaymentUser) Run(wg *sync.WaitGroup, results chan behavior.Resu
 	for {
 		select {
 		case <-stop:
-			logging.Infof("waiting for user transactions to finish ")
+			//logging.Infof("waiting for user transactions to finish")
 			transactionsWg.Wait()
-			logging.Infof("user transactions done")
+			//logging.Infof("user transactions done")
 			return
 		case <-tickerChannel(ticker):
-			//update rate
-			logging.Infof("updating user rate")
-			currentRate, promise, ok = s.Schedule.GetNextRate()
-			if !ok {
-			loop:
-				for {
-					select {
-					case <-stop:
-						return
-					case currentRate = <-promise:
-						logging.Infof("received promise rate")
-						break loop
-					}
+			//logging.Infof("user ran for %s, waiting for user transactions to finish", s.Duration.String())
+			transactionsWg.Wait()
+			//logging.Infof("user transactions done waiting for stop or restart")
+			for {
+				select {
+				case <-stop:
+					logging.Infof("stopping user")
+					return
+				case newUser := <-s.restartCh:
+					//logging.Infof("waiting for transactions to finish to restart user")
+					transactionsWg.Wait()
+					s.resetParameters(newUser)
+					//logging.Infof("restarting user")
+					goto reset
 				}
 			}
-			if currentRate.Duration == 0 { //continue till the end
-				ticker = nil
-			} else {
-				ticker = time.NewTicker(currentRate.Duration)
-			}
-			logging.Infof("new user rate: %d, %s", currentRate.Tps, currentRate.Duration.String())
-
+			return
+		case newUser := <-s.restartCh:
+			//logging.Infof("waiting for transactions to finish to restart user")
+			transactionsWg.Wait()
+			s.resetParameters(newUser)
+			//logging.Infof("restarting user")
+			goto reset
 		case <-time.After(1 * time.Second):
-			for i := 0; i < currentRate.Tps; i++ {
+			for i := 0; i < s.Tps; i++ {
 				transactionsWg.Add(1)
 				go func() {
-					results <- s.randomTransaction()
+					if s.Random {
+						results <- s.executeTransaction(s.randomTransaction())
+					} else {
+						results <- s.executeTransaction(s.Payments[i%len(s.Payments)])
+						currentTransaction++
+					}
 					transactionsWg.Done()
 				}()
 			}
@@ -255,7 +229,34 @@ func (s *StubbornPaymentUser) Run(wg *sync.WaitGroup, results chan behavior.Resu
 	}
 }
 
-func (s *StubbornPaymentUser) randomTransaction() behavior.StubbornAction {
+func (s *StubbornPaymentUser) runSchedule(results chan behavior.Result) {
+	//Execute all transactions sequentially once and return
+	for _, info := range s.Payments {
+		wait := time.Unix(info.Time, 0).Sub(time.Now())
+		if wait > 0 {
+			time.Sleep(wait)
+		}
+
+		if wait < 0 {
+			logging.Warnf("executing transaction with %s delay", wait.String())
+		}
+
+		results <- s.executeTransaction(info)
+	}
+}
+
+func (s *StubbornPaymentUser) Restart(new behavior.User) error {
+	newStubbornPaymentUser, ok := new.(*StubbornPaymentUser)
+	if !ok {
+		return fmt.Errorf("invalid new stubbornPaymentUser")
+	}
+
+	s.restartCh <- *newStubbornPaymentUser
+
+	return nil
+}
+
+func (s *StubbornPaymentUser) randomTransaction() Info {
 	var to string
 	var amount float64
 
@@ -268,7 +269,14 @@ func (s *StubbornPaymentUser) randomTransaction() behavior.StubbornAction {
 		amount = rand.Float64()
 	}
 
+	return Info{
+		Amount: amount,
+		To:     to,
+	}
+}
+
+func (s *StubbornPaymentUser) executeTransaction(info Info) behavior.StubbornAction {
 	return s.Stubborn.PerformStubbornAction(func() error {
-		return s.App.Pay(to, amount, s.Timeout)
+		return s.App.Pay(info.To, info.Amount, s.Timeout)
 	})
 }
