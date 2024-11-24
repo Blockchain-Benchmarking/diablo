@@ -25,11 +25,11 @@ type Coordinates struct {
 
 func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, secondaries map[string]*network.Secondary, coordinator *core.Coordinator, endpoints []string) error {
 	var tps, tpsFactor float64
-	tps = 1
+	tps = 200
 	tpsFactor = 2
 
 	users, err := createUsersFromAccounts(accounts, "stubbornPaymentUser", "ethereum", endpoints, map[string]interface{}{
-		"timeout":      "60s",
+		"timeout":      "30s",
 		"max_attempts": 5,
 		"random":       true,
 		"tps":          int(tps),
@@ -56,7 +56,7 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 
 	var previousTps float64
 	for {
-		time.Sleep(time.Minute)
+		time.Sleep(2*time.Minute)
 
 		res := coordinator.CollectNewResults()
 		logging.Infof("intermediary %d results", len(res))
@@ -95,7 +95,7 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 		tps = tps * tpsFactor
 
 		updatedUsers, err := createUsersFromAccounts(accounts, "stubbornPaymentUser", "ethereum", endpoints, map[string]interface{}{
-			"timeout":      "60s",
+			"timeout":      "30s",
 			"max_attempts": 5,
 			"random":       true,
 			"tps":          int(tps),

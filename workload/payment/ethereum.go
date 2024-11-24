@@ -95,7 +95,7 @@ func (e *EthereumPaymentApplication) Pay(to string, amount float64, timeout time
 
 	tx := types.NewTx(
 		&types.LegacyTx{
-			Nonce:    e.nonce.Add(1) - 1,
+			Nonce:    e.nonce.Add(1),
 			GasPrice: gasPrice,
 			Gas:      gasLimit,
 			To:       &toAddress,
