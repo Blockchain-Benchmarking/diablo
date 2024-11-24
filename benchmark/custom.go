@@ -25,12 +25,12 @@ type Coordinates struct {
 
 func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, secondaries map[string]*network.Secondary, coordinator *core.Coordinator, endpoints []string) error {
 	var tps, tpsFactor float64
-	tps = 200
+	tps = 1
 	tpsFactor = 2
 
 	users, err := createUsersFromAccounts(accounts, "stubbornPaymentUser", "ethereum", endpoints, map[string]interface{}{
 		"timeout":      "60s",
-		"max_attempts": 1,
+		"max_attempts": 5,
 		"random":       true,
 		"tps":          int(tps),
 	})
@@ -56,7 +56,7 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 
 	var previousTps float64
 	for {
-		time.Sleep(2 * time.Minute)
+		time.Sleep(time.Minute)
 
 		res := coordinator.CollectNewResults()
 		logging.Infof("intermediary %d results", len(res))
@@ -68,7 +68,7 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 
 		graph[int(tps)] = curPerf
 
-		logging.Infof("TPS: %d, Throughput: %d, Latency: %s", tps, curPerf.Throughput, curPerf.Latency.String())
+		logging.Infof("TPS: %d, Throughput: %d, Latency: %s", int(tps), curPerf.Throughput, curPerf.Latency.String())
 
 		if curPerf.Throughput == 0 || curPerf.Latency == 0 {
 			break
@@ -82,7 +82,7 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 			if ldiff > maxLatencyDiff {
 				logging.Warnf("latency difference reached %s", ldiff.String())
 				tpsFactor = 0.8
-			} else if tdiff <= 0 {
+			} else if tdiff < 0 {
 				logging.Warnf("throughput difference stagnated or decreased (%d), reducing tps", tdiff)
 				tpsFactor = 0.9
 			} else {
@@ -96,7 +96,7 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 
 		updatedUsers, err := createUsersFromAccounts(accounts, "stubbornPaymentUser", "ethereum", endpoints, map[string]interface{}{
 			"timeout":      "60s",
-			"max_attempts": 1,
+			"max_attempts": 5,
 			"random":       true,
 			"tps":          int(tps),
 		})
