@@ -13,21 +13,22 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"math"
 	"math/big"
-	"sync/atomic"
+	"sync"
 	"time"
 )
 
 type EthereumPaymentApplication struct {
 	client *ethclient.Client
 	behavior.Config
-	nonce atomic.Uint64
+
+	nonce      uint64
+	nonceMutex sync.Mutex
 }
 
 // NewEthereumPaymentApplication creates a new ethereum payment application instance
 func NewEthereumPaymentApplication(config behavior.Config) (PaymentApplication, error) {
 	app := &EthereumPaymentApplication{
 		Config: config,
-		nonce:  atomic.Uint64{},
 	}
 
 	var err error
@@ -41,7 +42,7 @@ func NewEthereumPaymentApplication(config behavior.Config) (PaymentApplication, 
 		return nil, fmt.Errorf("failed to fetch initial nonce: %w", err)
 	}
 
-	app.nonce.Store(nonce)
+	app.nonce = nonce
 
 	return app, nil
 }
@@ -78,9 +79,16 @@ func (e *EthereumPaymentApplication) Pay(to string, amount float64, timeout time
 		return fmt.Errorf("insufficient funds: balance=%s, required=%s", balance.String(), totalCost.String())
 	}
 
+	e.nonceMutex.Lock()
+
+	unlock := func() {
+		e.nonce++
+		e.nonceMutex.Unlock()
+	}
+
 	tx := types.NewTx(
 		&types.LegacyTx{
-			Nonce:    e.nonce.Add(1),
+			Nonce:    e.nonce,
 			GasPrice: gasPrice,
 			Gas:      gasLimit,
 			To:       &toAddress,
@@ -90,19 +98,24 @@ func (e *EthereumPaymentApplication) Pay(to string, amount float64, timeout time
 
 	chainID, err := e.client.NetworkID(context.Background())
 	if err != nil {
+		unlock()
 		return err
 	}
 
 	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
 	if err != nil {
+		unlock()
 		return err
 	}
 
 	//logging.Debugf("sending transaction")
 	err = e.client.SendTransaction(context.Background(), signedTx)
 	if err != nil {
+		unlock()
 		return err
 	}
+
+	unlock()
 
 	hash := signedTx.Hash()
 	start := time.Now()
