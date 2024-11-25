@@ -78,21 +78,6 @@ func (e *EthereumPaymentApplication) Pay(to string, amount float64, timeout time
 		return fmt.Errorf("insufficient funds: balance=%s, required=%s", balance.String(), totalCost.String())
 	}
 
-	/**
-	nonce, err := e.client.PendingNonceAt(context.Background(), address)
-	if err != nil {
-		return fmt.Errorf("failed to get nonce: %w", err)
-	}*/
-
-	/**
-	gasPrice, err := e.client.SuggestGasPrice(context.Background())
-	if err != nil {
-		return fmt.Errorf("failed to get gas price: %w", err)
-	}
-
-	gasLimit := uint64(21000) //TODO ?
-	value := big.NewInt(int64(amount * math.Pow(10, 18)))*/
-
 	tx := types.NewTx(
 		&types.LegacyTx{
 			Nonce:    e.nonce.Add(1) - 1,

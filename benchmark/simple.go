@@ -26,7 +26,6 @@ var (
 			"max_attempts": 30,
 			"random":       true,
 			"payments":     []payment.Info{},
-			"tps":          200,
 			"duration":     0,
 		},
 	}
@@ -52,7 +51,7 @@ func NewSimpleBenchmark(tps int) (Benchmark, error) {
 }
 
 func (s *SimpleBenchmark) Run(accounts []behavior.Account, _ time.Duration, secondaries map[string]*network.Secondary, coordinator *core.Coordinator, endpoints []string) error {
-	wk, err := createUsersFromAccounts(accounts, s.User.Name, s.Blockchain, endpoints, s.User.Params)
+	wk, err := createStubbornPaymentUsersFromAccounts(accounts, s.Tps, s.Blockchain, endpoints, s.User.Params)
 	if err != nil {
 		return fmt.Errorf("failed to create users: %w", err)
 	}
@@ -98,17 +97,27 @@ func (s *SimpleBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 	return nil
 }
 
-func createUsersFromAccounts(accounts []behavior.Account, user string, blockchain string, endpoints []string, userParams map[string]interface{}) ([]behavior.User, error) {
+func createStubbornPaymentUsersFromAccounts(accounts []behavior.Account, tps int, blockchain string, endpoints []string, userParams map[string]interface{}) ([]behavior.User, error) {
 	users := make([]behavior.User, len(accounts))
-	userType := core.Users[user]
+	userType := payment.StubbornPaymentUser{}
 
 	var addresses []string
 	for _, acc := range accounts {
 		addresses = append(addresses, acc.Address)
 	}
 
+	tpsPerUser := tps / len(accounts)
+	remainder := tps % len(accounts)
+
 	var err error
 	for i, acc := range accounts {
+		userTps := tpsPerUser
+		if remainder > 0 {
+			userTps++
+			remainder--
+		}
+
+		userParams["tps"] = userTps
 		users[i], err = userType.New(blockchain, behavior.Config{
 			Id:         strconv.Itoa(i),
 			Endpoint:   endpoints[i%len(endpoints)],
