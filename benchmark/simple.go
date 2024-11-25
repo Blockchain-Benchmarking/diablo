@@ -22,8 +22,8 @@ var (
 	defaultUser = User{
 		Name: "stubbornPaymentUser",
 		Params: map[string]interface{}{
-			"timeout":      "60s",
-			"max_attempts": 30,
+			"timeout":      "15s",
+			"max_attempts": 3,
 			"random":       true,
 			"payments":     []payment.Info{},
 			"duration":     0,

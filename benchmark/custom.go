@@ -81,7 +81,7 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 			if ldiff > maxLatencyDiff {
 				logging.Warnf("latency difference reached %s", ldiff.String())
 				tpsFactor = 0.8
-			} else if tdiff < 0 {
+			} else if tdiff <= 0 {
 				logging.Warnf("throughput difference stagnated or decreased (%d), reducing tps", tdiff)
 				tpsFactor = 0.9
 			} else {

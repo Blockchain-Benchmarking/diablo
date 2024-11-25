@@ -91,7 +91,7 @@ func init() {
 	primaryCmd.Flags().IntVar(&secondaries, "secondaries", 0, "number of secondaries")
 
 	primaryCmd.Flags().StringVar(&benchmark, "benchmark", defaultBenchmark, "benchmark to use")
-	primaryCmd.Flags().DurationVarP(&duration, "duration", "d", defaultDuration, "experiment duration")
+	primaryCmd.Flags().DurationVarP(&duration, "duration", "d", 0, "experiment duration")
 
 	primaryCmd.Flags().StringVar(&configFile, "config", "", "config file")
 
