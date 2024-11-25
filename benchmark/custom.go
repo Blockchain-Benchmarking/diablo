@@ -29,7 +29,7 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 	tpsFactor = 2
 
 	users, err := createStubbornPaymentUsersFromAccounts(accounts, int(tps), "ethereum", endpoints, map[string]interface{}{
-		"timeout":      "60s",
+		"timeout":      "15s",
 		"max_attempts": 5,
 		"random":       true,
 	})
@@ -55,7 +55,7 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 
 	var previousTps float64
 	for {
-		time.Sleep(time.Minute)
+		time.Sleep(2 * time.Minute)
 
 		res := coordinator.CollectNewResults()
 		logging.Infof("intermediary %d results", len(res))
@@ -94,7 +94,7 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 		tps = tps * tpsFactor
 
 		updatedUsers, err := createStubbornPaymentUsersFromAccounts(accounts, int(tps), "ethereum", endpoints, map[string]interface{}{
-			"timeout":      "60s",
+			"timeout":      "15s",
 			"max_attempts": 5,
 			"random":       true,
 		})

@@ -15,7 +15,7 @@ import (
 
 const (
 	defaultBlockchain       = "ethereum"
-	defaultResultsBatchSize = 1
+	defaultResultsBatchSize = 100
 )
 
 var (
