@@ -93,12 +93,6 @@ func (s *SimpleBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 		return err
 	}
 
-	logging.Infof("waiting for results")
-	results := coordinator.CollectResults()
-	latency := behavior.AverageLatency(results)
-	throughput := behavior.Throughput(results)
-
-	logging.Infof("benchmark done: throughput = %d/s, latency = %s", throughput, latency.String())
 	return nil
 }
 

@@ -96,6 +96,11 @@ func (p *Primary) Run() ([]behavior.Result, error) {
 	}
 
 	res := coordinator.CollectResults()
+	latency := behavior.AverageLatency(res)
+        throughput := behavior.Throughput(res)
+
+        logging.Infof("benchmark done: throughput = %d/s, latency = %s", throughput, latency.String())
+
 	coordinator.Stop()
 
 	return res, nil
