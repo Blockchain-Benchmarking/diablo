@@ -30,7 +30,7 @@ type StubbornPaymentUser struct {
 	Duration time.Duration //0 if the user should run as long as possible
 
 	App       PaymentApplication
-	restartCh chan StubbornPaymentUser
+	restartCh chan behavior.RestartInfo
 }
 
 type Info struct {
@@ -91,7 +91,7 @@ func (s *StubbornPaymentUser) New(blockchain string, config behavior.Config, par
 		Tps: tps,
 
 		Duration:  duration,
-		restartCh: make(chan StubbornPaymentUser),
+		restartCh: make(chan behavior.RestartInfo),
 	}
 
 	return u, nil
@@ -173,6 +173,7 @@ reset:
 
 	currentTransaction := 0
 	transactionsWg := &sync.WaitGroup{}
+	logging.Infof("user %s has tps %d", s.ID(), s.Tps)
 	for i := 0; i < s.Tps; i++ {
 		transactionsWg.Add(1)
 		go func() {
@@ -189,33 +190,38 @@ reset:
 	for {
 		select {
 		case <-stop:
-			//logging.Infof("waiting for user transactions to finish")
 			transactionsWg.Wait()
-			//logging.Infof("user transactions done")
 			return
 		case <-tickerChannel(ticker):
-			//logging.Infof("user ran for %s, waiting for user transactions to finish", s.Duration.String())
 			transactionsWg.Wait()
-			//logging.Infof("user transactions done waiting for stop or restart")
 			for {
 				select {
 				case <-stop:
 					logging.Infof("stopping user")
 					return
-				case newUser := <-s.restartCh:
-					//logging.Infof("waiting for transactions to finish to restart user")
-					//transactionsWg.Wait()
-					s.resetParameters(newUser)
-					//logging.Infof("restarting user")
+				case info := <-s.restartCh:
+					transactionsWg.Wait()
+					s.resetParameters(*info.NewParameters.(*StubbornPaymentUser))
+					waitingTime := time.Until(info.RestartTime)
+					if waitingTime > 0 {
+						logging.Infof(waitingTime.String() + " until start")
+						time.Sleep(waitingTime)
+					} else {
+						logging.Infof("starting user with %s delay", (-1 * waitingTime).String())
+					}
 					goto reset
 				}
 			}
-			return
-		case newUser := <-s.restartCh:
-			//logging.Infof("waiting for transactions to finish to restart user")
-			//transactionsWg.Wait() //todo wait for transactions to finish or not ?
-			s.resetParameters(newUser)
-			//logging.Infof("restarting user")
+		case info := <-s.restartCh:
+			transactionsWg.Wait()
+			s.resetParameters(*info.NewParameters.(*StubbornPaymentUser))
+			waitingTime := time.Until(info.RestartTime)
+			if waitingTime > 0 {
+				logging.Infof(waitingTime.String() + " until start")
+				time.Sleep(waitingTime)
+			} else {
+				logging.Infof("starting user with %s delay", (-1 * waitingTime).String())
+			}
 			goto reset
 		case <-time.After(time.Second):
 			for i := 0; i < s.Tps; i++ {
@@ -250,13 +256,13 @@ func (s *StubbornPaymentUser) runSchedule(results chan behavior.Result) {
 	}
 }
 
-func (s *StubbornPaymentUser) Restart(new behavior.User) error {
-	newStubbornPaymentUser, ok := new.(*StubbornPaymentUser)
+func (s *StubbornPaymentUser) Restart(info behavior.RestartInfo) error {
+	_, ok := info.NewParameters.(*StubbornPaymentUser)
 	if !ok {
 		return fmt.Errorf("invalid new stubbornPaymentUser")
 	}
 
-	s.restartCh <- *newStubbornPaymentUser
+	s.restartCh <- info
 
 	return nil
 }

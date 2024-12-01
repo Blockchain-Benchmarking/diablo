@@ -157,24 +157,23 @@ func (g *Generator) usersRunner() {
 
 		case startTime := <-g.start:
 			logging.Infof("received start time: " + startTime.String())
-			waitingTime := time.Until(startTime)
-
-			if waitingTime > 0 {
-				logging.Infof(waitingTime.String() + " until start")
-				time.Sleep(waitingTime)
-				logging.Infof("starting users")
-			} else {
-				logging.Infof("starting users with %s delay", (-1 * waitingTime).String())
-			}
-
 			for id, user := range pending {
 				if existing, running := g.runningUsers[id]; !running {
 					userWg.Add(1)
 					g.runningUsers[id] = user
 					once()
-					go user.Run(userWg, g.results, g.stop)
+					go func() {
+						waitingTime := time.Until(startTime)
+						if waitingTime > 0 {
+							logging.Infof(waitingTime.String() + " until start")
+							time.Sleep(waitingTime)
+						} else {
+							logging.Infof("starting user with %s delay", (-1 * waitingTime).String())
+						}
+						user.Run(userWg, g.results, g.stop)
+					}()
 				} else {
-					err := existing.Restart(user)
+					err := existing.Restart(behavior.RestartInfo{NewParameters: user, RestartTime: startTime})
 					if err != nil {
 						logging.Errorf("failed to restart user %s: %s", id, err.Error())
 					}

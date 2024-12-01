@@ -16,7 +16,12 @@ type User interface {
 	ID() string
 
 	Run(wg *sync.WaitGroup, results chan Result, stop chan struct{})
-	Restart(newParameters User) error
+	Restart(info RestartInfo) error
+}
+
+type RestartInfo struct {
+	NewParameters User
+	RestartTime   time.Time
 }
 
 type Result interface {
