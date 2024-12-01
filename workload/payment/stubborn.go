@@ -98,7 +98,10 @@ func (s *StubbornPaymentUser) New(blockchain string, config behavior.Config, par
 }
 
 func (s *StubbornPaymentUser) resetParameters(newParameters StubbornPaymentUser) {
-	s.Implementation = newParameters.Implementation
+	if s.Implementation != newParameters.Implementation {
+		s.App = nil
+		s.Implementation = newParameters.Implementation
+	}
 	s.Config = newParameters.Config
 	s.Timeout = newParameters.Timeout
 	s.Stubborn = newParameters.Stubborn
@@ -153,14 +156,16 @@ func (s *StubbornPaymentUser) Run(wg *sync.WaitGroup, results chan behavior.Resu
 	s.restartCh = make(chan behavior.RestartInfo)
 
 reset:
-	init := PaymentApplications[strings.ToLower(s.Implementation)]
-	app, err := init(s.Config)
-	if err != nil {
-		logging.Errorf("failed to init user app: %s", err.Error())
-		return
-	}
+	if s.App == nil {
+		init := PaymentApplications[strings.ToLower(s.Implementation)]
+		app, err := init(s.Config)
+		if err != nil {
+			logging.Errorf("failed to init user app: %s", err.Error())
+			return
+		}
 
-	s.App = app
+		s.App = app
+	}
 
 	//Scheduled run
 	if s.Tps == 0 {
