@@ -30,7 +30,7 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 
 	users, err := createStubbornPaymentUsersFromAccounts(accounts, int(tps), "ethereum", endpoints, map[string]interface{}{
 		"timeout":      "15s",
-		"max_attempts": 5,
+		"max_attempts": 1,
 		"random":       true,
 	})
 
@@ -103,7 +103,7 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 
 		updatedUsers, err := createStubbornPaymentUsersFromAccounts(accounts, int(tps), "ethereum", endpoints, map[string]interface{}{
 			"timeout":      "15s",
-			"max_attempts": 5,
+			"max_attempts": 1,
 			"random":       true,
 		})
 
