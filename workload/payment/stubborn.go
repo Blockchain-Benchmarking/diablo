@@ -150,6 +150,8 @@ func tickerChannel(t *time.Ticker) <-chan time.Time {
 func (s *StubbornPaymentUser) Run(wg *sync.WaitGroup, results chan behavior.Result, stop chan struct{}) {
 	defer wg.Done()
 
+	s.restartCh = make(chan behavior.RestartInfo)
+
 reset:
 	init := PaymentApplications[strings.ToLower(s.Implementation)]
 	app, err := init(s.Config)
