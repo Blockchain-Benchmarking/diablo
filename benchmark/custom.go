@@ -107,6 +107,7 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, _ ma
 
 		} else {
 			lastGoodTps = tps
+			tps = tps + tpsAdd
 		}
 
 		updatedUsers, err := createStubbornPaymentUsersFromAccounts(accounts, int(tps), "ethereum", endpoints, map[string]interface{}{
