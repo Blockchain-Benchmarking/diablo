@@ -25,7 +25,7 @@ type Generator struct {
 
 	runningUsers map[string]behavior.User
 
-	users chan behavior.User
+	users chan []behavior.User
 
 	results chan behavior.Result
 
@@ -45,7 +45,7 @@ func NewGenerator(primary *network.PrimaryConn, duration string) (*Generator, er
 
 		duration:     d,
 		runningUsers: make(map[string]behavior.User), //user IDs => user
-		users:        make(chan behavior.User),       //TODO why is this channel buffered ?
+		users:        make(chan []behavior.User),     //TODO why is this channel buffered ?
 		results:      make(chan behavior.Result),
 		start:        make(chan time.Time, 1),
 		stop:         make(chan struct{}),
@@ -180,12 +180,11 @@ func (g *Generator) usersRunner() {
 				}
 			}
 
-		case user := <-g.users:
-			pending = append(pending, user)
+		case users := <-g.users:
+			logging.Infof("received %d users in runner", len(users))
+			pending = append(pending, users...)
 		}
 	}
-
-	return
 }
 
 func (g *Generator) messagesHandler() {
@@ -247,9 +246,7 @@ func (g *Generator) processUsersMessage(msg messaging.Message) error {
 			return err
 		}
 
-		for _, u := range users[t] {
-			g.users <- u
-		}
+		g.users <- users[t]
 	}
 
 	return nil
