@@ -170,7 +170,7 @@ func (g *Generator) usersRunner() {
 						} else {
 							logging.Infof("starting users with %s delay", (-1 * waitingTime).String())
 						}
-						user.Run(userWg, g.results, g.stop)
+						go user.Run(userWg, g.results, g.stop)
 					}()
 				} else {
 					err := existing.Restart(behavior.RestartInfo{NewParameters: user, RestartTime: startTime})
@@ -246,7 +246,9 @@ func (g *Generator) processUsersMessage(msg messaging.Message) error {
 			return err
 		}
 
+		logging.Debugf("sending %d users to runner channel", len(users[t]))
 		g.users <- users[t]
+		logging.Debugf("users sent to channel")
 	}
 
 	return nil
