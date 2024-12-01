@@ -175,7 +175,7 @@ func (c *Coordinator) processStoppedMessage(msg messaging.Message) error {
 }
 
 // CollectResultsWithInterval returns the results between earliestSubmit and latestDone
-func (c *Coordinator) CollectResultsWithInterval(earliestSubmit time.Time, latestDone time.Time) []behavior.Result {
+func (c *Coordinator) CollectResultsWithInterval(earliestSubmit time.Time, latestDone time.Time) ([]behavior.Result, bool) {
 	return c.results.CollectResultsWithInterval(earliestSubmit, latestDone)
 }
 
@@ -297,18 +297,25 @@ func (r *ResultsCollector) CollectResults() []behavior.Result {
 	return r.allResults
 }
 
-func (r *ResultsCollector) CollectResultsWithInterval(earliestSubmit time.Time, latestDone time.Time) []behavior.Result {
+// returns true if there are transactions submitted later
+func (r *ResultsCollector) CollectResultsWithInterval(earliestSubmit time.Time, latestDone time.Time) ([]behavior.Result, bool) {
 	r.RLock()
 	defer r.RUnlock()
 
+	latestSubmit := time.Time{}
+
 	results := make([]behavior.Result, 0)
 	for _, result := range r.allResults {
+		if result.Start().After(latestSubmit) {
+			latestSubmit = result.Start()
+		}
+
 		if result.Start().After(earliestSubmit) && result.End().Before(latestDone) {
 			results = append(results, result)
 		}
 	}
 
-	return results
+	return results, latestSubmit.After(latestDone)
 }
 
 /**

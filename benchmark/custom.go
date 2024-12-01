@@ -56,13 +56,13 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 
 		time.Sleep(2*time.Minute + 3*time.Second + 10*time.Second) //10 additional seconds for last results to arrive
 
-		res := coordinator.CollectResultsWithInterval(startTime, endTime)
+		res, ok := coordinator.CollectResultsWithInterval(startTime, endTime)
 		logging.Infof("intermediary %d results", len(res))
 
-		for len(res) <= int(tps)*120 {
+		for len(res) <= int(tps)*120 || !ok {
 			logging.Warnf("missing %d results, waiting", int(tps)*120-len(res))
 			time.Sleep(5 * time.Second)
-			res = coordinator.CollectResultsWithInterval(startTime, endTime)
+			res, ok = coordinator.CollectResultsWithInterval(startTime, endTime)
 			logging.Infof("intermediary %d results", len(res))
 		}
 
