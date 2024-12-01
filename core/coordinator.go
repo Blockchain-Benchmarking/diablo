@@ -174,9 +174,9 @@ func (c *Coordinator) processStoppedMessage(msg messaging.Message) error {
 	return nil
 }
 
-// CollectNewResults returns the new results after the last call to CollectNewResults
-func (c *Coordinator) CollectNewResults(earliestSubmit time.Time, latestDone time.Time) []behavior.Result {
-	return c.results.CollectNewResults(earliestSubmit, latestDone)
+// CollectResultsWithInterval returns the results between earliestSubmit and latestDone
+func (c *Coordinator) CollectResultsWithInterval(earliestSubmit time.Time, latestDone time.Time) []behavior.Result {
+	return c.results.CollectResultsWithInterval(earliestSubmit, latestDone)
 }
 
 // CollectResults returns all the results
@@ -275,13 +275,11 @@ func flattenUsersMap(m map[string][]behavior.User) []behavior.User {
 type ResultsCollector struct {
 	sync.RWMutex
 	allResults []behavior.Result
-	lastIndex  int
 }
 
 func NewResultsCollector() *ResultsCollector {
 	return &ResultsCollector{
 		allResults: make([]behavior.Result, 0),
-		lastIndex:  -1,
 	}
 }
 
@@ -299,24 +297,18 @@ func (r *ResultsCollector) CollectResults() []behavior.Result {
 	return r.allResults
 }
 
-func (r *ResultsCollector) CollectNewResults(earliestSubmit time.Time, latestDone time.Time) []behavior.Result {
+func (r *ResultsCollector) CollectResultsWithInterval(earliestSubmit time.Time, latestDone time.Time) []behavior.Result {
 	r.RLock()
 	defer r.RUnlock()
 
-	if r.lastIndex >= len(r.allResults) || len(r.allResults) == 0 {
-		return []behavior.Result{}
-	}
-
-	result := make([]behavior.Result, 0)
-	for i := r.lastIndex + 1; i < len(r.allResults); i++ {
-		if r.allResults[i].Start().After(earliestSubmit) || r.allResults[i].End().Before(latestDone) {
-			result = append(result, r.allResults[i])
+	results := make([]behavior.Result, 0)
+	for _, result := range r.allResults {
+		if result.Start().After(earliestSubmit) && result.End().Before(latestDone) {
+			results = append(results, result)
 		}
 	}
 
-	r.lastIndex = len(r.allResults)
-	logging.Infof("collecting %d results between %s and %s", len(result), earliestSubmit.String(), latestDone.String())
-	return result
+	return results
 }
 
 /**
