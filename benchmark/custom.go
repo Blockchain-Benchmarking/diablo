@@ -47,14 +47,14 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 
 	var previousTps float64
 	for {
-		startTime := time.Now().Add(3 * time.Second)
+		startTime := time.Now().Add(10 * time.Second)
 		endTime := startTime.Add(2 * time.Minute)
-		err = coordinator.SendStartToAll(time.Now().Add(3 * time.Second))
+		err = coordinator.SendStartToAll(time.Now().Add(10 * time.Second))
 		if err != nil {
 			return err
 		}
 
-		time.Sleep(2*time.Minute + 3*time.Second + 10*time.Second) //10 additional seconds for last results to arrive
+		time.Sleep(2*time.Minute + 10*time.Second + 10*time.Second) //10 additional seconds for last results to arrive
 
 		res, ok := coordinator.CollectResultsWithInterval(startTime, endTime)
 		logging.Infof("intermediary %d results", len(res))
