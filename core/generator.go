@@ -159,7 +159,7 @@ func (g *Generator) usersRunner() {
 			logging.Infof("received start time: " + startTime.String())
 			for _, user := range pending {
 				if existing, running := g.runningUsers[user.ID()]; !running {
-					logging.Debugf("received new user")
+					//logging.Debugf("received new user")
 					userWg.Add(1)
 					g.runningUsers[user.ID()] = user
 					once()
@@ -173,7 +173,7 @@ func (g *Generator) usersRunner() {
 						go user.Run(userWg, g.results, g.stop)
 					}()
 				} else {
-					logging.Debugf("restart already existing user")
+					//logging.Debugf("restart already existing user")
 					err := existing.Restart(behavior.RestartInfo{NewParameters: user, RestartTime: startTime})
 					if err != nil {
 						logging.Errorf("failed to restart user %s: %s", user.ID(), err.Error())
@@ -181,10 +181,10 @@ func (g *Generator) usersRunner() {
 				}
 			}
 			pending = make([]behavior.User, 0)
-			logging.Debugf("processed all pending users")
+			//logging.Debugf("processed all pending users")
 
 		case users := <-g.users:
-			logging.Infof("received %d users in runner", len(users))
+			//logging.Infof("received %d users in runner", len(users))
 			pending = append(pending, users...)
 		}
 	}
@@ -249,9 +249,9 @@ func (g *Generator) processUsersMessage(msg messaging.Message) error {
 			return err
 		}
 
-		logging.Debugf("sending %d users to runner channel", len(users[t]))
+		//logging.Debugf("sending %d users to runner channel", len(users[t]))
 		g.users <- users[t]
-		logging.Debugf("users sent to channel")
+		//logging.Debugf("users sent to channel")
 	}
 
 	return nil

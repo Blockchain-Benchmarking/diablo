@@ -180,7 +180,7 @@ reset:
 
 	currentTransaction := 0
 	transactionsWg := &sync.WaitGroup{}
-	logging.Infof("user %s has tps %d", s.ID(), s.Tps)
+	//logging.Infof("user %s has tps %d", s.ID(), s.Tps)
 	for i := 0; i < s.Tps; i++ {
 		transactionsWg.Add(1)
 		go func() {
@@ -211,7 +211,7 @@ reset:
 					s.resetParameters(*info.NewParameters.(*StubbornPaymentUser))
 					waitingTime := time.Until(info.RestartTime)
 					if waitingTime > 0 {
-						logging.Infof(waitingTime.String() + " until start")
+						//logging.Infof(waitingTime.String() + " until start")
 						time.Sleep(waitingTime)
 					} else {
 						logging.Infof("starting user with %s delay", (-1 * waitingTime).String())
@@ -220,13 +220,13 @@ reset:
 				}
 			}
 		case info := <-s.restartCh:
-			logging.Infof("waiting for transactions before restart")
+			//logging.Infof("waiting for transactions before restart")
 			transactionsWg.Wait()
-			logging.Infof("transactions done, restarting")
+			//logging.Infof("transactions done, restarting")
 			s.resetParameters(*info.NewParameters.(*StubbornPaymentUser))
 			waitingTime := time.Until(info.RestartTime)
 			if waitingTime > 0 {
-				logging.Infof(waitingTime.String() + " until start")
+				//logging.Infof(waitingTime.String() + " until start")
 				time.Sleep(waitingTime)
 			} else {
 				logging.Infof("starting user with %s delay", (-1 * waitingTime).String())
@@ -271,9 +271,9 @@ func (s *StubbornPaymentUser) Restart(info behavior.RestartInfo) error {
 		return fmt.Errorf("invalid new stubbornPaymentUser")
 	}
 
-	logging.Debugf("restart signal sending")
+	//logging.Debugf("restart signal sending")
 	s.restartCh <- info
-	logging.Debugf("sent restart signal")
+	//logging.Debugf("sent restart signal")
 
 	return nil
 }
