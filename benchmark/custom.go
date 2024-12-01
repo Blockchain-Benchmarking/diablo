@@ -12,7 +12,9 @@ import (
 )
 
 const (
-	maxLatencyDiff = 30 * time.Second
+	maxTps                  = 1000
+	maxThroughputLossFactor = 0.25
+	maxLatencyDiff          = 30 * time.Second
 )
 
 type CustomBenchmark struct {
@@ -23,7 +25,7 @@ type Coordinates struct {
 	Latency    time.Duration `json:"Latency"`
 }
 
-func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, secondaries map[string]*network.Secondary, coordinator *core.Coordinator, endpoints []string) error {
+func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, _ map[string]*network.Secondary, coordinator *core.Coordinator, endpoints []string) error {
 	var tps, tpsFactor float64
 	tps = 200
 	tpsFactor = 2
@@ -46,7 +48,9 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 	}
 
 	var previousTps float64
+	var lastGoodTps float64
 	for {
+		increasingTps := true
 		startTime := time.Now().Add(10 * time.Second)
 		endTime := startTime.Add(2 * time.Minute)
 		err = coordinator.SendStartToAll(time.Now().Add(10 * time.Second))
@@ -84,22 +88,40 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 		if len(graph) > 1 {
 			previous := graph[int(previousTps)]
 			ldiff := curPerf.Latency - previous.Latency
-			tdiff := curPerf.Throughput - previous.Throughput
 
 			if ldiff > maxLatencyDiff {
 				logging.Warnf("latency difference reached %s", ldiff.String())
-				tpsFactor = 0.8
-			} else if tdiff <= 0 {
-				logging.Warnf("throughput difference stagnated or decreased (%d), reducing tps", tdiff)
-				tpsFactor = 0.9
-			} else {
-				tpsFactor = 2
-				logging.Infof("performance improving increasing tps")
+				increasingTps = false
+			} else if (int(tps) - curPerf.Throughput) <= int(tps*maxThroughputLossFactor) {
+				logging.Warnf("throughput failed to keep up, reducing tps")
+				increasingTps = false
 			}
+
+			if increasingTps && ldiff <= maxLatencyDiff {
+				tpsFactor = 2
+				logging.Infof("perf improving, increase tps")
+			} else if !increasingTps {
+				logging.Warnf("decreasing tps")
+				tpsFactor = 0.5
+			}
+
+		}
+
+		if tpsFactor == 2 {
+			lastGoodTps = tps
 		}
 
 		previousTps = tps
 		tps = tps * tpsFactor
+		if int(tps) >= maxTps {
+			logging.Warnf("reached max tps limit")
+			break
+		}
+
+		if tps < lastGoodTps && !increasingTps {
+			logging.Infof("found optimal tps %d", int(lastGoodTps))
+			break
+		}
 
 		updatedUsers, err := createStubbornPaymentUsersFromAccounts(accounts, int(tps), "ethereum", endpoints, map[string]interface{}{
 			"timeout":      "15s",
