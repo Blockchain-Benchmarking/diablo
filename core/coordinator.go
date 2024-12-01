@@ -302,12 +302,12 @@ func (r *ResultsCollector) CollectResultsWithInterval(earliestSubmit time.Time, 
 	r.RLock()
 	defer r.RUnlock()
 
-	latestSubmit := time.Time{}
+	maxDone := time.Time{}
 
 	results := make([]behavior.Result, 0)
 	for _, result := range r.allResults {
-		if result.Start().After(latestSubmit) {
-			latestSubmit = result.Start()
+		if result.End().After(latestDone) {
+			maxDone = result.End()
 		}
 
 		if result.Start().After(earliestSubmit) && result.End().Before(latestDone) {
@@ -315,7 +315,8 @@ func (r *ResultsCollector) CollectResultsWithInterval(earliestSubmit time.Time, 
 		}
 	}
 
-	return results, latestSubmit.After(latestDone)
+	logging.Infof("returning with results with latest done %v", maxDone.After(latestDone))
+	return results, maxDone.After(latestDone)
 }
 
 /**
