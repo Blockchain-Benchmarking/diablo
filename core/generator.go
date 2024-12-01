@@ -158,8 +158,8 @@ func (g *Generator) usersRunner() {
 		case startTime := <-g.start:
 			logging.Infof("received start time: " + startTime.String())
 			for _, user := range pending {
-				pending = append(pending[:0], pending[1:]...)
 				if existing, running := g.runningUsers[user.ID()]; !running {
+					logging.Debugf("received new user")
 					userWg.Add(1)
 					g.runningUsers[user.ID()] = user
 					once()
@@ -173,12 +173,15 @@ func (g *Generator) usersRunner() {
 						go user.Run(userWg, g.results, g.stop)
 					}()
 				} else {
+					logging.Debugf("restart already existing user")
 					err := existing.Restart(behavior.RestartInfo{NewParameters: user, RestartTime: startTime})
 					if err != nil {
 						logging.Errorf("failed to restart user %s: %s", user.ID(), err.Error())
 					}
 				}
 			}
+			pending = make([]behavior.User, 0)
+			logging.Debugf("processed all pending users")
 
 		case users := <-g.users:
 			logging.Infof("received %d users in runner", len(users))
