@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+const usersBatchSize = 200
+
 type Coordinator struct {
 	wg    *sync.WaitGroup
 	stop  chan struct{}
@@ -84,31 +86,42 @@ func (c *Coordinator) SendUsersToGenerators(users []behavior.User) error {
 	return nil
 }
 
+// SendUsers sends the list of users to the given secondary, possibly in multiple messages
 func (c *Coordinator) SendUsers(s *network.Secondary, users map[string][]behavior.User) error {
-	buf, err := marshallUsers(users)
-	if err != nil {
-		return fmt.Errorf("failed to marshal users: %w", err)
+	res := splitUsers(users)
+	if len(res) == 0 {
+		return fmt.Errorf("no users to send")
 	}
 
-	msg := messaging.Users{Users: buf}
-	err = s.Send(msg)
-	if err != nil {
-		return fmt.Errorf("failed to send workload: %w", err)
-	}
+	logging.Infof("sending users in %d batches to %s", len(res), s.Addr())
 
-	if c.usersTrack[s.Addr()] == nil {
-		c.usersTrack[s.Addr()] = make([]behavior.User, 0)
-	}
+	for _, r := range res {
+		buf, err := marshallUsers(r)
+		if err != nil {
+			return fmt.Errorf("failed to marshal users: %w", err)
+		}
 
-	c.usersTrack[s.Addr()] = append(c.usersTrack[s.Addr()], flattenUsersMap(users)...)
+		msg := messaging.Users{Users: buf}
+		err = s.Send(msg)
+		if err != nil {
+			return fmt.Errorf("failed to send workload: %w", err)
+		}
+
+		if c.usersTrack[s.Addr()] == nil {
+			c.usersTrack[s.Addr()] = make([]behavior.User, 0)
+		}
+
+		c.usersTrack[s.Addr()] = append(c.usersTrack[s.Addr()], flattenUsersMap(r)...)
+	}
 
 	return nil
 }
 
-func (c *Coordinator) SendStartToAll(startTime time.Time, resultsBatchSize int) error {
+// SendStartToAll sends start or restart signal to all secondaries
+func (c *Coordinator) SendStartToAll(startTime time.Time) error {
 	logging.Infof("sending start message to secondaries with start time = " + startTime.String())
 	for addr, secondary := range c.secondaries {
-		err := secondary.Send(messaging.Start{Start: startTime.Unix(), ResultsBatchSize: resultsBatchSize})
+		err := secondary.Send(messaging.Start{Start: startTime.Unix()})
 		if err != nil {
 			return fmt.Errorf("failed to send start to %s: %w", addr, err)
 		}
@@ -116,6 +129,7 @@ func (c *Coordinator) SendStartToAll(startTime time.Time, resultsBatchSize int) 
 	return nil
 }
 
+// SendStopToAll signals to the secondaries that no more users will be sent
 func (c *Coordinator) SendStopToAll() error {
 	logging.Infof("sending stop")
 
@@ -161,8 +175,8 @@ func (c *Coordinator) processStoppedMessage(msg messaging.Message) error {
 }
 
 // CollectNewResults returns the new results after the last call to CollectNewResults
-func (c *Coordinator) CollectNewResults() []behavior.Result {
-	return c.results.CollectNewResults()
+func (c *Coordinator) CollectNewResults(earliestSubmit time.Time, latestDone time.Time) []behavior.Result {
+	return c.results.CollectNewResults(earliestSubmit, latestDone)
 }
 
 // CollectResults returns all the results
@@ -285,7 +299,7 @@ func (r *ResultsCollector) CollectResults() []behavior.Result {
 	return r.allResults
 }
 
-func (r *ResultsCollector) CollectNewResults() []behavior.Result {
+func (r *ResultsCollector) CollectNewResults(earliestSubmit time.Time, latestDone time.Time) []behavior.Result {
 	r.RLock()
 	defer r.RUnlock()
 
@@ -295,9 +309,50 @@ func (r *ResultsCollector) CollectNewResults() []behavior.Result {
 
 	result := make([]behavior.Result, 0)
 	for i := r.lastIndex + 1; i < len(r.allResults); i++ {
-		result = append(result, r.allResults[i])
+		if r.allResults[i].Start().After(earliestSubmit) || r.allResults[i].End().Before(latestDone) {
+			result = append(result, r.allResults[i])
+		}
 	}
 
 	r.lastIndex = len(r.allResults)
+	logging.Infof("collecting %d results between %s and %s", len(result), earliestSubmit.String(), latestDone.String())
 	return result
+}
+
+/**
+ * Helper functions
+ */
+
+func splitUsers(users map[string][]behavior.User) []map[string][]behavior.User {
+	results := make([]map[string][]behavior.User, 0)
+	currentBatch := make(map[string][]behavior.User)
+	currentBatchSize := 0
+
+	for userType, usersList := range users {
+		for len(usersList) > 0 {
+			availableSpace := usersBatchSize - currentBatchSize
+			if availableSpace <= 0 {
+				results = append(results, currentBatch)
+				currentBatch = make(map[string][]behavior.User)
+				currentBatchSize = 0
+				availableSpace = usersBatchSize
+			}
+
+			if len(usersList) <= availableSpace {
+				currentBatch[userType] = append(currentBatch[userType], usersList...)
+				currentBatchSize += len(usersList)
+				usersList = nil
+			} else {
+				currentBatch[userType] = append(currentBatch[userType], usersList[:availableSpace]...)
+				currentBatchSize += availableSpace
+				usersList = usersList[availableSpace:]
+			}
+		}
+	}
+
+	if currentBatchSize > 0 {
+		results = append(results, currentBatch)
+	}
+
+	return results
 }

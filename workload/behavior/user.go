@@ -29,35 +29,19 @@ type Result interface {
 	UnmarshalResults(buf []byte) ([]Result, error)
 }
 
-func Throughput(results []Result) int {
+func Throughput(results []Result, duration time.Duration) int {
 	if len(results) == 0 {
 		return 0
 	}
-
-	minStart := results[0].Start()
-	maxEnd := results[0].End()
 
 	successes := 0
 	for _, result := range results {
 		if result.Success() {
 			successes++
 		}
-
-		if result.Start().Before(minStart) {
-			minStart = result.Start()
-		}
-		if result.End().After(maxEnd) {
-			maxEnd = result.End()
-		}
 	}
 
-	totalDuration := maxEnd.Sub(minStart).Seconds()
-
-	if totalDuration == 0 {
-		return 0
-	}
-
-	return int(float64(successes) / totalDuration)
+	return int(float64(successes) / duration.Seconds())
 }
 
 func AverageLatency(results []Result) time.Duration {

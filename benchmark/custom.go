@@ -40,28 +40,37 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 
 	graph := make(map[int]Coordinates) //tps -> (latency, throughput)
 
-	//Send all the users with initial workload of x tps for a certain duration
 	err = coordinator.SendUsersToGenerators(users)
 	if err != nil {
 		return err
 	}
 
-	err = coordinator.SendStartToAll(time.Now().Add(3*time.Second), 10)
-	if err != nil {
-		return err
-	}
-
-	time.Sleep(3 * time.Second)
-
 	var previousTps float64
 	for {
-		time.Sleep(2 * time.Minute)
+		startTime := time.Now().Add(3 * time.Second)
+		err = coordinator.SendStartToAll(time.Now().Add(3 * time.Second))
+		if err != nil {
+			return err
+		}
 
-		res := coordinator.CollectNewResults()
+		time.Sleep(2*time.Minute + 3*time.Second)
+		endTime := time.Now()
+
+		var res []behavior.Result
+		res = append(res, coordinator.CollectNewResults(startTime, endTime)...)
 		logging.Infof("intermediary %d results", len(res))
 
+		for len(res) <= int(tps)*100 {
+			logging.Warnf("missing %d results, waiting", int(tps)*100-len(res))
+			time.Sleep(2 * time.Second)
+			res = append(res, coordinator.CollectNewResults(startTime, endTime)...)
+			logging.Infof("intermediary %d results", len(res))
+		}
+
+		logging.Infof("checking %d results", len(res))
+
 		curPerf := Coordinates{
-			Throughput: behavior.Throughput(res),
+			Throughput: behavior.Throughput(res, 2*time.Minute),
 			Latency:    behavior.AverageLatency(res),
 		}
 
@@ -107,7 +116,6 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 		if err != nil {
 			return err
 		}
-
 	}
 
 	err = coordinator.SendStopToAll()

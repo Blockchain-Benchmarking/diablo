@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+const resultsBatchSize = 10
+
 type Generator struct {
 	wg      *sync.WaitGroup
 	primary *network.PrimaryConn
@@ -25,8 +27,7 @@ type Generator struct {
 
 	users chan behavior.User
 
-	results   chan behavior.Result
-	batchSize int
+	results chan behavior.Result
 
 	stop    chan struct{}
 	stopped bool
@@ -43,8 +44,8 @@ func NewGenerator(primary *network.PrimaryConn, duration string) (*Generator, er
 		primary: primary,
 
 		duration:     d,
-		runningUsers: make(map[string]behavior.User),   //user IDs => user
-		users:        make(chan behavior.User, 100000), //TODO why is this channel buffered ?
+		runningUsers: make(map[string]behavior.User), //user IDs => user
+		users:        make(chan behavior.User),       //TODO why is this channel buffered ?
 		results:      make(chan behavior.Result),
 		start:        make(chan time.Time, 1),
 		stop:         make(chan struct{}),
@@ -77,7 +78,7 @@ func (g *Generator) resultsCollector() {
 		}
 
 		batches[res.Type()] = append(batches[res.Type()], res)
-		if len(batches[res.Type()]) >= g.batchSize {
+		if len(batches[res.Type()]) >= resultsBatchSize {
 			//send results
 			buf, err := json.Marshal(batches[res.Type()])
 			if err != nil {
@@ -124,6 +125,7 @@ func (g *Generator) usersRunner() {
 	defer g.wg.Done()
 
 	userWg := &sync.WaitGroup{}
+	pending := make(map[string]behavior.User)
 
 	once := sync.OnceFunc(func() {
 		if g.duration > 0 {
@@ -144,50 +146,46 @@ func (g *Generator) usersRunner() {
 		}
 	})
 
-	startTime := <-g.start
-	logging.Infof("received start time: " + startTime.String())
-	waitingTime := time.Until(startTime)
-
-	if waitingTime > 0 {
-		logging.Infof(waitingTime.String() + " until start")
-		time.Sleep(waitingTime)
-		logging.Infof("starting users runner")
-	} else {
-		logging.Infof("starting users runner with %s delay", (-1 * waitingTime).String())
-	}
-
-loop:
+	//loop:
 	for {
 		select {
 		case <-g.stop:
-			break loop
-		case user := <-g.users:
-			//logging.Infof("got user")
-			once()
-			u, ok := g.runningUsers[user.ID()]
-			if !ok {
-				userWg.Add(1)
-				g.runningUsers[user.ID()] = user
-				go func() {
-					user.Run(userWg, g.results, g.stop)
-				}()
-				//logging.Infof("started new user")
+			logging.Infof("wait for users")
+			userWg.Wait()
+			close(g.results)
+			logging.Infof("users done")
+
+		case startTime := <-g.start:
+			logging.Infof("received start time: " + startTime.String())
+			waitingTime := time.Until(startTime)
+
+			if waitingTime > 0 {
+				logging.Infof(waitingTime.String() + " until start")
+				time.Sleep(waitingTime)
+				logging.Infof("starting users")
 			} else {
-				//logging.Infof("restarting user %s", user.ID())
-				go func() {
-					err := u.Restart(user)
-					if err != nil {
-						logging.Errorf("failed to restart user: %s", err.Error())
-					}
-				}()
+				logging.Infof("starting users with %s delay", (-1 * waitingTime).String())
 			}
+
+			for id, user := range pending {
+				if existing, running := g.runningUsers[id]; !running {
+					userWg.Add(1)
+					g.runningUsers[id] = user
+					once()
+					go user.Run(userWg, g.results, g.stop)
+				} else {
+					err := existing.Restart(user)
+					if err != nil {
+						logging.Errorf("failed to restart user %s: %s", id, err.Error())
+					}
+				}
+			}
+
+		case user := <-g.users:
+			pending[user.ID()] = user
 		}
 	}
 
-	logging.Infof("wait for users")
-	userWg.Wait()
-	close(g.results)
-	logging.Infof("users done")
 	return
 }
 
@@ -213,12 +211,6 @@ func (g *Generator) messagesHandler() {
 			}
 
 			logging.Infof("received %s message", msg.Type())
-
-			/**
-			if msg.Type() == messaging.StopType {
-				close(g.users)
-				return
-			}*/
 
 			exec, ok := g.execs[msg.Type()]
 			if !ok {
@@ -257,9 +249,7 @@ func (g *Generator) processUsersMessage(msg messaging.Message) error {
 		}
 
 		for _, u := range users[t] {
-			//logging.Debugf("sending user to channel")
 			g.users <- u
-			//logging.Debugf("sent user to channel")
 		}
 	}
 
@@ -273,8 +263,6 @@ func (g *Generator) processStartMessage(msg messaging.Message) error {
 	if !ok {
 		return fmt.Errorf("invalid Start message %v", msg)
 	}
-
-	g.batchSize = startMsg.ResultsBatchSize
 
 	g.start <- time.Unix(startMsg.Start, 0)
 	logging.Infof("finished processing start message")
@@ -291,6 +279,7 @@ func (g *Generator) processStopMessage(msg messaging.Message) error {
 
 	if !g.stopped {
 		g.stopped = true
+		close(g.users)
 		close(g.stop)
 	} else {
 		logging.Errorf("already stopped")

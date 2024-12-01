@@ -142,6 +142,7 @@ func tickerChannel(t *time.Ticker) <-chan time.Time {
 	return t.C
 }
 
+// TODO defer wg.done from outside ?
 func (s *StubbornPaymentUser) Run(wg *sync.WaitGroup, results chan behavior.Result, stop chan struct{}) {
 	defer wg.Done()
 
@@ -199,7 +200,7 @@ reset:
 					return
 				case newUser := <-s.restartCh:
 					//logging.Infof("waiting for transactions to finish to restart user")
-					transactionsWg.Wait()
+					//transactionsWg.Wait()
 					s.resetParameters(newUser)
 					//logging.Infof("restarting user")
 					goto reset
@@ -208,7 +209,7 @@ reset:
 			return
 		case newUser := <-s.restartCh:
 			//logging.Infof("waiting for transactions to finish to restart user")
-			transactionsWg.Wait()
+			//transactionsWg.Wait() //todo wait for transactions to finish or not ?
 			s.resetParameters(newUser)
 			//logging.Infof("restarting user")
 			goto reset

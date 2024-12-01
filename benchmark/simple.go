@@ -14,8 +14,7 @@ import (
 )
 
 const (
-	defaultBlockchain       = "ethereum"
-	defaultResultsBatchSize = 100
+	defaultBlockchain = "ethereum"
 )
 
 var (
@@ -88,7 +87,13 @@ func (s *SimpleBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 		i = i + n
 	}
 
-	err = coordinator.SendStartToAll(time.Now().Add(5*time.Second), defaultResultsBatchSize) //TODO report delay on secondary side
+	err = coordinator.SendStartToAll(time.Now().Add(5 * time.Second)) //TODO report delay on secondary side
+	if err != nil {
+		return err
+	}
+
+	logging.Infof("sending stop message to all secondaries")
+	err = coordinator.SendStopToAll()
 	if err != nil {
 		return err
 	}

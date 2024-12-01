@@ -27,8 +27,7 @@ func (SecondaryInit) Type() string {
 }
 
 type Start struct {
-	Start            int64 `json:"start"`
-	ResultsBatchSize int   `json:"results-batch-size"`
+	Start int64 `json:"start"`
 }
 
 func (Start) Empty() Message {
