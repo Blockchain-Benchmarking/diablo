@@ -119,6 +119,9 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 	}
 
 	err = coordinator.SendStopToAll()
+	if err != nil {
+		return err
+	}
 
 	file, err := os.Create("coordinates.json")
 	if err != nil {
