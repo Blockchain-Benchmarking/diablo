@@ -7,6 +7,7 @@ import (
 	"diablo/workload/behavior"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"time"
 )
@@ -26,11 +27,10 @@ type Coordinates struct {
 }
 
 func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, _ map[string]*network.Secondary, coordinator *core.Coordinator, endpoints []string) error {
-	var tps, tpsFactor float64
-	tps = 200
-	tpsFactor = 2
+	tps := 200
+	tpsAdd := 200
 
-	users, err := createStubbornPaymentUsersFromAccounts(accounts, int(tps), "ethereum", endpoints, map[string]interface{}{
+	users, err := createStubbornPaymentUsersFromAccounts(accounts, tps, "ethereum", endpoints, map[string]interface{}{
 		"timeout":      "15s",
 		"max_attempts": 1,
 		"random":       true,
@@ -47,10 +47,9 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, _ ma
 		return err
 	}
 
-	var previousTps float64
-	var lastGoodTps float64
+	var previousTps int
+	var lastGoodTps int
 	for {
-		increasingTps := true
 		startTime := time.Now().Add(10 * time.Second)
 		endTime := startTime.Add(2 * time.Minute)
 		err = coordinator.SendStartToAll(time.Now().Add(10 * time.Second))
@@ -64,7 +63,7 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, _ ma
 		logging.Infof("intermediary %d results", len(res))
 
 		for !ok {
-			logging.Warnf("missing %d results, waiting", int(tps)*120-len(res))
+			logging.Warnf("missing %d results, waiting", tps*120-len(res))
 			time.Sleep(5 * time.Second)
 			res, ok = coordinator.CollectResultsWithInterval(startTime, endTime)
 			logging.Infof("intermediary %d results", len(res))
@@ -77,9 +76,9 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, _ ma
 			Latency:    behavior.AverageLatency(res),
 		}
 
-		graph[int(tps)] = curPerf
+		graph[tps] = curPerf
 
-		logging.Infof("TPS: %d, Throughput: %d, Latency: %s", int(tps), curPerf.Throughput, curPerf.Latency.String())
+		logging.Infof("TPS: %d, Throughput: %d/s, Latency: %s", tps, curPerf.Throughput, curPerf.Latency.String())
 
 		if curPerf.Throughput == 0 || curPerf.Latency == 0 {
 			break
@@ -91,36 +90,23 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, _ ma
 
 			if ldiff > maxLatencyDiff {
 				logging.Warnf("latency difference reached %s", ldiff.String())
-				increasingTps = false
-			} else if (int(tps) - curPerf.Throughput) <= int(tps*maxThroughputLossFactor) {
-				logging.Warnf("throughput failed to keep up, reducing tps")
-				increasingTps = false
+				tps = (lastGoodTps + maxTps) / 2
+			} else if (tps - curPerf.Throughput) <= int(float64(tps)*maxThroughputLossFactor) {
+				logging.Warnf("throughput failed to keep up, difference was %d vs %d allowed", tps-curPerf.Throughput, int(float64(tps)*maxThroughputLossFactor))
+				tps = (lastGoodTps + maxTps) / 2
+			} else {
+				logging.Infof("performance improving, increasing tps")
+				lastGoodTps = tps
+				tps = int(math.Min(float64(tps+tpsAdd), maxTps))
 			}
 
-			if increasingTps && ldiff <= maxLatencyDiff {
-				tpsFactor = 2
-				logging.Infof("perf improving, increase tps")
-			} else if !increasingTps {
-				logging.Warnf("decreasing tps")
-				tpsFactor = 0.5
+			if math.Abs(float64(lastGoodTps-tps)) < 10 {
+				logging.Infof("found optimal tps with sufficient precision")
+				break
 			}
 
-		}
-
-		if tpsFactor == 2 {
+		} else {
 			lastGoodTps = tps
-		}
-
-		previousTps = tps
-		tps = tps * tpsFactor
-		if int(tps) >= maxTps {
-			logging.Warnf("reached max tps limit")
-			break
-		}
-
-		if tps < lastGoodTps && !increasingTps {
-			logging.Infof("found optimal tps %d", int(lastGoodTps))
-			break
 		}
 
 		updatedUsers, err := createStubbornPaymentUsersFromAccounts(accounts, int(tps), "ethereum", endpoints, map[string]interface{}{
