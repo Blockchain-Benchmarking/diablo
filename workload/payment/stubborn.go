@@ -264,7 +264,9 @@ func (s *StubbornPaymentUser) Restart(info behavior.RestartInfo) error {
 		return fmt.Errorf("invalid new stubbornPaymentUser")
 	}
 
+	logging.Debugf("restart signal sending")
 	s.restartCh <- info
+	logging.Debugf("sent restart signal")
 
 	return nil
 }
