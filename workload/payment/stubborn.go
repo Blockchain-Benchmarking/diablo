@@ -25,8 +25,7 @@ type StubbornPaymentUser struct {
 
 	Random bool //set to true if the interactions should be random (payments must be empty)
 
-	Transactions int //0 if interactions should be completed following their schedule
-	Interval     time.Duration
+	Tps int //0 if interactions should be completed following their schedule
 
 	Duration time.Duration //0 if the user should run as long as possible
 
@@ -66,19 +65,9 @@ func (s *StubbornPaymentUser) New(blockchain string, config behavior.Config, par
 		payments = make([]Info, 0)
 	}
 
-	transactions, ok := params["transactions"].(int)
+	tps, ok := params["tps"].(int)
 	if !ok {
 		return nil, fmt.Errorf("params 'tps' should be specified")
-	}
-
-	intervalString, ok := params["interval"].(float64)
-	if !ok {
-		return nil, fmt.Errorf("params 'interval' should be specified")
-	}
-
-	interval, err := time.ParseDuration(fmt.Sprintf("%fs", intervalString))
-	if err != nil {
-		return nil, fmt.Errorf("invalid interval format: %s", intervalString)
 	}
 
 	duration := time.Duration(0)
@@ -99,8 +88,7 @@ func (s *StubbornPaymentUser) New(blockchain string, config behavior.Config, par
 		Random:   random,
 		Payments: payments,
 
-		Transactions: transactions,
-		Interval:     interval,
+		Tps: tps,
 
 		Duration:  duration,
 		restartCh: make(chan StubbornPaymentUser),
@@ -116,7 +104,7 @@ func (s *StubbornPaymentUser) resetParameters(newParameters StubbornPaymentUser)
 	s.Stubborn = newParameters.Stubborn
 	s.Random = newParameters.Random
 	s.Payments = newParameters.Payments
-	s.Transactions = newParameters.Transactions
+	s.Tps = newParameters.Tps
 	s.Duration = newParameters.Duration
 }
 
@@ -173,7 +161,7 @@ reset:
 	s.App = app
 
 	//Scheduled run
-	if s.Transactions == 0 {
+	if s.Tps == 0 {
 		s.runSchedule(results)
 		return
 	}
@@ -185,7 +173,7 @@ reset:
 
 	currentTransaction := 0
 	transactionsWg := &sync.WaitGroup{}
-	for i := 0; i < s.Transactions; i++ {
+	for i := 0; i < s.Tps; i++ {
 		transactionsWg.Add(1)
 		go func() {
 			if s.Random {
@@ -229,8 +217,8 @@ reset:
 			s.resetParameters(newUser)
 			//logging.Infof("restarting user")
 			goto reset
-		case <-time.After(s.Interval):
-			for i := 0; i < s.Transactions; i++ {
+		case <-time.After(time.Second):
+			for i := 0; i < s.Tps; i++ {
 				transactionsWg.Add(1)
 				go func() {
 					if s.Random {

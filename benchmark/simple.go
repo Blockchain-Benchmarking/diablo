@@ -110,20 +110,19 @@ func createStubbornPaymentUsersFromAccounts(accounts []behavior.Account, tps int
 		addresses = append(addresses, acc.Address)
 	}
 
-	tpsPerUser := float64(tps) / float64(len(accounts))
-	intervalPerUser := 1.0 / tpsPerUser
+	tpsPerUser := tps / len(accounts)
 	remainder := tps % len(accounts)
 
 	var err error
 	for i, acc := range accounts {
-		userInterval := intervalPerUser
+		userTps := tpsPerUser
+
 		if remainder > 0 {
-			userInterval = 1.0 / (tpsPerUser + 1)
+			userTps++
 			remainder--
 		}
 
-		userParams["transactions"] = tpsPerUser
-		userParams["interval"] = userInterval
+		userParams["tps"] = tpsPerUser
 		users[i], err = userType.New(blockchain, behavior.Config{
 			Id:         strconv.Itoa(i),
 			Endpoint:   endpoints[i%len(endpoints)],
