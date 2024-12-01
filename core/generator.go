@@ -125,7 +125,7 @@ func (g *Generator) usersRunner() {
 	defer g.wg.Done()
 
 	userWg := &sync.WaitGroup{}
-	pending := make(map[string]behavior.User)
+	pending := make([]behavior.User, 0)
 
 	once := sync.OnceFunc(func() {
 		if g.duration > 0 {
@@ -157,31 +157,31 @@ func (g *Generator) usersRunner() {
 
 		case startTime := <-g.start:
 			logging.Infof("received start time: " + startTime.String())
-			for id, user := range pending {
-				if existing, running := g.runningUsers[id]; !running {
+			for _, user := range pending {
+				pending = append(pending[:0], pending[1:]...)
+				if existing, running := g.runningUsers[user.ID()]; !running {
 					userWg.Add(1)
-					g.runningUsers[id] = user
+					g.runningUsers[user.ID()] = user
 					once()
 					go func() {
 						waitingTime := time.Until(startTime)
 						if waitingTime > 0 {
-							logging.Infof(waitingTime.String() + " until start")
 							time.Sleep(waitingTime)
 						} else {
-							logging.Infof("starting user with %s delay", (-1 * waitingTime).String())
+							logging.Infof("starting users with %s delay", (-1 * waitingTime).String())
 						}
 						user.Run(userWg, g.results, g.stop)
 					}()
 				} else {
 					err := existing.Restart(behavior.RestartInfo{NewParameters: user, RestartTime: startTime})
 					if err != nil {
-						logging.Errorf("failed to restart user %s: %s", id, err.Error())
+						logging.Errorf("failed to restart user %s: %s", user.ID(), err.Error())
 					}
 				}
 			}
 
 		case user := <-g.users:
-			pending[user.ID()] = user
+			pending = append(pending, user)
 		}
 	}
 
