@@ -91,7 +91,7 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, _ ma
 			if ldiff > maxLatencyDiff {
 				logging.Warnf("latency difference reached %s", ldiff.String())
 				tps = (lastGoodTps + maxTps) / 2
-			} else if (tps - curPerf.Throughput) <= int(float64(tps)*maxThroughputLossFactor) {
+			} else if (tps - curPerf.Throughput) > int(float64(tps)*maxThroughputLossFactor) {
 				logging.Warnf("throughput failed to keep up, difference was %d vs %d allowed", tps-curPerf.Throughput, int(float64(tps)*maxThroughputLossFactor))
 				tps = (lastGoodTps + maxTps) / 2
 			} else {
