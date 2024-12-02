@@ -126,6 +126,7 @@ func (s *StubbornPaymentUser) UnmarshalUsers(buf []byte) ([]behavior.User, error
 	users := make([]behavior.User, len(res))
 	for i, user := range res {
 		users[i] = user
+		logging.Infof("unmarshaled user with implementation %s and ID %s and tps %d", user.Implementation, user.Config.Id, user.Tps)
 	}
 
 	return users, nil
