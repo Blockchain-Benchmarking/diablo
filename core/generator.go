@@ -170,7 +170,7 @@ func (g *Generator) usersRunner() {
 						} else {
 							logging.Infof("starting users with %s delay", (-1 * waitingTime).String())
 						}
-						logging.Infof("starting user %s", user.ID())
+
 						go user.Run(userWg, g.results, g.stop)
 					}()
 				} else {
@@ -185,7 +185,7 @@ func (g *Generator) usersRunner() {
 			//logging.Debugf("processed all pending users")
 
 		case users := <-g.users:
-			//logging.Infof("received %d users in runner", len(users))
+			logging.Infof("received %d users in runner", len(users))
 			pending = append(pending, users...)
 		}
 	}

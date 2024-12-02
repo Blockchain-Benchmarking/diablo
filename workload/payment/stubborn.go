@@ -154,6 +154,7 @@ func tickerChannel(t *time.Ticker) <-chan time.Time {
 func (s *StubbornPaymentUser) Run(wg *sync.WaitGroup, results chan behavior.Result, stop chan struct{}) {
 	defer wg.Done()
 
+	logging.Infof("user %s starting with tps %d", s.ID(), s.Tps)
 	s.restartCh = make(chan behavior.RestartInfo)
 	interval := time.Second
 
