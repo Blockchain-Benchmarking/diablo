@@ -251,7 +251,7 @@ reset:
 				}()
 			}
 
-			interval = time.Duration(math.Min(float64(time.Second-time.Since(st)), 0))
+			interval = time.Duration(math.Max(float64(time.Second-time.Since(st)), 0))
 		}
 	}
 }
