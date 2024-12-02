@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-const usersBatchSize = 200
+const usersBatchSize = 400
 
 type Coordinator struct {
 	wg    *sync.WaitGroup
