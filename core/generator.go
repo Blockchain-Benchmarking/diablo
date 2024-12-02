@@ -154,7 +154,7 @@ func (g *Generator) usersRunner() {
 			userWg.Wait()
 			close(g.results)
 			logging.Infof("users done")
-
+			return
 		case startTime := <-g.start:
 			logging.Infof("received start time: " + startTime.String())
 			for _, user := range pending {
