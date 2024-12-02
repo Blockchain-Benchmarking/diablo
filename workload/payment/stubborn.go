@@ -5,6 +5,7 @@ import (
 	"diablo/workload/behavior"
 	"encoding/json"
 	"fmt"
+	"math"
 	"math/rand"
 	"strings"
 	"sync"
@@ -154,6 +155,7 @@ func (s *StubbornPaymentUser) Run(wg *sync.WaitGroup, results chan behavior.Resu
 	defer wg.Done()
 
 	s.restartCh = make(chan behavior.RestartInfo)
+	interval := time.Second
 
 reset:
 	if s.App == nil {
@@ -232,7 +234,10 @@ reset:
 				logging.Infof("starting user with %s delay", (-1 * waitingTime).String())
 			}
 			goto reset
-		case <-time.After(time.Second):
+		case <-time.After(interval):
+			interval = time.Second
+
+			st := time.Now()
 			for i := 0; i < s.Tps; i++ {
 				transactionsWg.Add(1)
 				go func() {
@@ -245,6 +250,8 @@ reset:
 					transactionsWg.Done()
 				}()
 			}
+
+			interval = time.Duration(math.Min(float64(time.Second-time.Since(st)), 0))
 		}
 	}
 }
