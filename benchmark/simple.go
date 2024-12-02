@@ -92,12 +92,6 @@ func (s *SimpleBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 		return err
 	}
 
-	logging.Infof("sending stop message to all secondaries")
-	err = coordinator.SendStopToAll()
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
