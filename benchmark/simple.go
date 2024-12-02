@@ -22,7 +22,7 @@ var (
 		Name: "stubbornPaymentUser",
 		Params: map[string]interface{}{
 			"timeout":      "15s",
-			"max_attempts": 3,
+			"max_attempts": 1,
 			"random":       true,
 			"payments":     []payment.Info{},
 			"duration":     0,
