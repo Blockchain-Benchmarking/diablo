@@ -170,7 +170,7 @@ reset:
 	}
 
 	//Scheduled run
-	if s.Tps == 0 {
+	if len(s.Payments) != 0 {
 		s.runSchedule(results)
 		return
 	}
@@ -189,7 +189,7 @@ reset:
 			if s.Random {
 				results <- s.executeTransaction(s.randomTransaction())
 			} else {
-				results <- s.executeTransaction(s.Payments[i%len(s.Payments)])
+				results <- s.executeTransaction(s.Payments[currentTransaction%len(s.Payments)])
 				currentTransaction++
 			}
 			transactionsWg.Done()
@@ -222,9 +222,9 @@ reset:
 				}
 			}
 		case info := <-s.restartCh:
-			//logging.Infof("waiting for transactions before restart")
+			logging.Infof("waiting for transactions before restart")
 			transactionsWg.Wait()
-			//logging.Infof("transactions done, restarting")
+			logging.Infof("transactions done, restarting")
 			s.resetParameters(*info.NewParameters.(*StubbornPaymentUser))
 			waitingTime := time.Until(info.RestartTime)
 			if waitingTime > 0 {
@@ -244,7 +244,7 @@ reset:
 					if s.Random {
 						results <- s.executeTransaction(s.randomTransaction())
 					} else {
-						results <- s.executeTransaction(s.Payments[i%len(s.Payments)])
+						results <- s.executeTransaction(s.Payments[currentTransaction%len(s.Payments)])
 						currentTransaction++
 					}
 					transactionsWg.Done()
@@ -278,9 +278,9 @@ func (s *StubbornPaymentUser) Restart(info behavior.RestartInfo) error {
 		return fmt.Errorf("invalid new stubbornPaymentUser")
 	}
 
-	//logging.Debugf("restart signal sending")
+	logging.Debugf("restart signal sending")
 	s.restartCh <- info
-	//logging.Debugf("sent restart signal")
+	logging.Debugf("sent restart signal")
 
 	return nil
 }

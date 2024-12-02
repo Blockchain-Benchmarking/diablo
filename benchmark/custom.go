@@ -153,7 +153,7 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, _ ma
 func previousTps(graph map[int]Coordinates, cur int) int {
 	result := 0
 	for k, _ := range graph {
-		if k > result && k <= cur {
+		if k > result && k < cur {
 			result = k
 		}
 	}
