@@ -25,7 +25,8 @@ type Coordinator struct {
 
 	results *ResultsCollector
 
-	usersDone chan struct{}
+	usersDone       chan struct{}
+	doneSecondaries int
 }
 
 func NewCoordinator(secondaries map[string]*network.Secondary) *Coordinator {
@@ -37,7 +38,7 @@ func NewCoordinator(secondaries map[string]*network.Secondary) *Coordinator {
 		secondaries: secondaries,
 
 		results:    NewResultsCollector(),
-		usersDone:  make(chan struct{}),
+		usersDone:  make(chan struct{}, 1),
 		usersTrack: make(map[string][]behavior.User),
 	}
 
@@ -170,7 +171,10 @@ func (c *Coordinator) processStoppedMessage(msg messaging.Message) error {
 		return fmt.Errorf("invalid Stopped message")
 	}
 
-	c.usersDone <- struct{}{}
+	c.doneSecondaries++
+	if c.doneSecondaries >= len(c.secondaries) {
+		c.usersDone <- struct{}{}
+	}
 	return nil
 }
 
