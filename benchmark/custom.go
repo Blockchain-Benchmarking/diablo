@@ -48,16 +48,15 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, _ ma
 	}
 
 	var previousTps int
-	var lastGoodTps int
 	for {
-		startTime := time.Now().Add(10 * time.Second)
+		startTime := time.Now().Add(20 * time.Second)
 		endTime := startTime.Add(2 * time.Minute)
-		err = coordinator.SendStartToAll(time.Now().Add(10 * time.Second))
+		err = coordinator.SendStartToAll(time.Now().Add(20 * time.Second))
 		if err != nil {
 			return err
 		}
 
-		time.Sleep(2*time.Minute + 10*time.Second + 10*time.Second) //10 additional seconds for last results to arrive
+		time.Sleep(2*time.Minute + 20*time.Second + 10*time.Second) //10 additional seconds for last results to arrive
 
 		res, ok := coordinator.CollectResultsWithInterval(startTime, endTime)
 		logging.Infof("intermediary %d results", len(res))
@@ -90,23 +89,21 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, _ ma
 
 			if ldiff > maxLatencyDiff {
 				logging.Warnf("latency difference reached %s", ldiff.String())
-				tps = (lastGoodTps + maxTps) / 2
+				tps = (previousTps + tps) / 2
 			} else if (tps - curPerf.Throughput) > int(float64(tps)*maxThroughputLossFactor) {
 				logging.Warnf("throughput failed to keep up, difference was %d vs %d allowed", tps-curPerf.Throughput, int(float64(tps)*maxThroughputLossFactor))
-				tps = (lastGoodTps + maxTps) / 2
+				tps = (previousTps + tps) / 2
 			} else {
 				logging.Infof("performance improving, increasing tps")
-				lastGoodTps = tps
 				tps = int(math.Min(float64(tps+tpsAdd), maxTps))
 			}
 
-			if math.Abs(float64(lastGoodTps-tps)) < 10 {
+			if math.Abs(float64(previousTps-tps)) < 10 {
 				logging.Infof("found optimal tps with sufficient precision")
 				break
 			}
 
 		} else {
-			lastGoodTps = tps
 			tps = tps + tpsAdd
 		}
 
