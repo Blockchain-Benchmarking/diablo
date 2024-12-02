@@ -126,7 +126,6 @@ func (s *StubbornPaymentUser) UnmarshalUsers(buf []byte) ([]behavior.User, error
 	users := make([]behavior.User, len(res))
 	for i, user := range res {
 		users[i] = user
-		logging.Infof("unmarshaled user with implementation %s and ID %s and tps %d", user.Implementation, user.Config.Id, user.Tps)
 	}
 
 	return users, nil
@@ -155,7 +154,6 @@ func tickerChannel(t *time.Ticker) <-chan time.Time {
 func (s *StubbornPaymentUser) Run(wg *sync.WaitGroup, results chan behavior.Result, stop chan struct{}) {
 	defer wg.Done()
 
-	logging.Infof("user %s starting with tps %d", s.ID(), s.Tps)
 	s.restartCh = make(chan behavior.RestartInfo)
 	interval := time.Second
 

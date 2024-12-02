@@ -116,7 +116,7 @@ func createStubbornPaymentUsersFromAccounts(accounts []behavior.Account, tps int
 			remainder--
 		}
 
-		userParams["tps"] = tpsPerUser
+		userParams["tps"] = userTps
 		users[i], err = userType.New(blockchain, behavior.Config{
 			Id:         strconv.Itoa(i),
 			Endpoint:   endpoints[i%len(endpoints)],

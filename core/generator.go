@@ -185,7 +185,6 @@ func (g *Generator) usersRunner() {
 			//logging.Debugf("processed all pending users")
 
 		case users := <-g.users:
-			logging.Infof("received %d users in runner", len(users))
 			pending = append(pending, users...)
 		}
 	}
