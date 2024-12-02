@@ -47,7 +47,6 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, _ ma
 		return err
 	}
 
-	previousTps := tps
 	for {
 		startTime := time.Now().Add(20 * time.Second)
 		endTime := startTime.Add(2 * time.Minute)
@@ -58,7 +57,7 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, _ ma
 
 		time.Sleep(2*time.Minute + 20*time.Second + 10*time.Second) //10 additional seconds for last results to arrive
 
-		res, ok := coordinator.CollectResultsWithInterval(startTime, endTime)
+		res, ok := coordinator.CollectResultsWithInterval(startTime.Add(5*time.Second), endTime.Add(5*time.Second)) //5 seconds warmup
 		logging.Infof("intermediary %d results", len(res))
 
 		for !ok {
@@ -85,21 +84,22 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, _ ma
 
 		newTps := 0
 		if len(graph) > 1 {
-			previous := graph[int(previousTps)]
+			prev := previousTps(graph, tps)
+			previous := graph[prev]
 			ldiff := curPerf.Latency - previous.Latency
 
 			if ldiff > maxLatencyDiff {
 				logging.Warnf("latency difference reached %s", ldiff.String())
-				newTps = (previousTps + tps) / 2
+				newTps = (prev + tps) / 2
 			} else if (tps - curPerf.Throughput) > int(float64(tps)*maxThroughputLossFactor) {
 				logging.Warnf("throughput failed to keep up, difference was %d vs %d allowed", tps-curPerf.Throughput, int(float64(tps)*maxThroughputLossFactor))
-				newTps = (previousTps + tps) / 2
+				newTps = (prev + tps) / 2
 			} else {
 				logging.Infof("performance improving, increasing tps")
 				newTps = int(math.Min(float64(tps+tpsAdd), maxTps))
 			}
 
-			if math.Abs(float64(previousTps-newTps)) < 10 {
+			if math.Abs(float64(prev-newTps)) < 10 {
 				logging.Infof("found optimal tps with sufficient precision")
 				break
 			}
@@ -108,10 +108,9 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, _ ma
 			newTps = tps + tpsAdd
 		}
 
-		previousTps = tps
 		tps = newTps
 
-		updatedUsers, err := createStubbornPaymentUsersFromAccounts(accounts, int(tps), "ethereum", endpoints, map[string]interface{}{
+		updatedUsers, err := createStubbornPaymentUsersFromAccounts(accounts, tps, "ethereum", endpoints, map[string]interface{}{
 			"timeout":      "15s",
 			"max_attempts": 1,
 			"random":       true,
@@ -149,4 +148,15 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, _ ma
 	}
 
 	return nil
+}
+
+func previousTps(graph map[int]Coordinates, cur int) int {
+	result := 0
+	for k, _ := range graph {
+		if k > result && k <= cur {
+			result = k
+		}
+	}
+
+	return result
 }
