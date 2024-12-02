@@ -47,7 +47,7 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, _ ma
 		return err
 	}
 
-	var previousTps int
+	previousTps := tps
 	for {
 		startTime := time.Now().Add(20 * time.Second)
 		endTime := startTime.Add(2 * time.Minute)
@@ -83,29 +83,33 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, _ ma
 			break
 		}
 
+		newTps := 0
 		if len(graph) > 1 {
 			previous := graph[int(previousTps)]
 			ldiff := curPerf.Latency - previous.Latency
 
 			if ldiff > maxLatencyDiff {
 				logging.Warnf("latency difference reached %s", ldiff.String())
-				tps = (previousTps + tps) / 2
+				newTps = (previousTps + tps) / 2
 			} else if (tps - curPerf.Throughput) > int(float64(tps)*maxThroughputLossFactor) {
 				logging.Warnf("throughput failed to keep up, difference was %d vs %d allowed", tps-curPerf.Throughput, int(float64(tps)*maxThroughputLossFactor))
-				tps = (previousTps + tps) / 2
+				newTps = (previousTps + tps) / 2
 			} else {
 				logging.Infof("performance improving, increasing tps")
-				tps = int(math.Min(float64(tps+tpsAdd), maxTps))
+				newTps = int(math.Min(float64(tps+tpsAdd), maxTps))
 			}
 
-			if math.Abs(float64(previousTps-tps)) < 10 {
+			if math.Abs(float64(previousTps-newTps)) < 10 {
 				logging.Infof("found optimal tps with sufficient precision")
 				break
 			}
 
 		} else {
-			tps = tps + tpsAdd
+			newTps = tps + tpsAdd
 		}
+
+		previousTps = tps
+		tps = newTps
 
 		updatedUsers, err := createStubbornPaymentUsersFromAccounts(accounts, int(tps), "ethereum", endpoints, map[string]interface{}{
 			"timeout":      "15s",
