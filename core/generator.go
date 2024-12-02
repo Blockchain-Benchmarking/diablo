@@ -170,6 +170,7 @@ func (g *Generator) usersRunner() {
 						} else {
 							logging.Infof("starting users with %s delay", (-1 * waitingTime).String())
 						}
+						logging.Infof("starting user %s", user.ID())
 						go user.Run(userWg, g.results, g.stop)
 					}()
 				} else {
