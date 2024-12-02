@@ -100,7 +100,7 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, _ ma
 			}
 
 			if math.Abs(float64(prev-newTps)) < 10 {
-				logging.Infof("found optimal tps with sufficient precision")
+				logging.Infof("found optimal tps with sufficient precision (prev %d, newtps %d)", prev, newTps)
 				break
 			}
 
