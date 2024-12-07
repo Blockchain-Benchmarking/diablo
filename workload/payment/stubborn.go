@@ -222,16 +222,16 @@ reset:
 				}
 			}
 		case info := <-s.restartCh:
-			logging.Infof("waiting for transactions before restart")
+			//logging.Infof("waiting for transactions before restart")
 			transactionsWg.Wait()
-			logging.Infof("transactions done, restarting")
+			//logging.Infof("transactions done, restarting")
 			s.resetParameters(*info.NewParameters.(*StubbornPaymentUser))
 			waitingTime := time.Until(info.RestartTime)
 			if waitingTime > 0 {
 				//logging.Infof(waitingTime.String() + " until start")
 				time.Sleep(waitingTime)
 			} else {
-				logging.Infof("starting user with %s delay", (-1 * waitingTime).String())
+				logging.Warnf("starting user with %s delay", (-1 * waitingTime).String())
 			}
 			goto reset
 		case <-time.After(interval):

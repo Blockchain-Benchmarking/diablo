@@ -48,9 +48,9 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, _ ma
 	}
 
 	for {
-		startTime := time.Now().Add(20 * time.Second)
+		startTime := time.Now().Add(30 * time.Second)
 		endTime := startTime.Add(2 * time.Minute)
-		err = coordinator.SendStartToAll(time.Now().Add(20 * time.Second))
+		err = coordinator.SendStartToAll(startTime)
 		if err != nil {
 			return err
 		}
