@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	maxTps                  = 900
+	maxTps                  = 1600
 	maxThroughputLossFactor = 0.25
 	maxLatencyDiff          = 30 * time.Second
 )
