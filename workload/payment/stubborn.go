@@ -252,6 +252,9 @@ reset:
 			}
 
 			interval = time.Duration(math.Max(float64(time.Second-time.Since(st)), 0))
+			if interval == 0 {
+				logging.Warnf("sending transactions takes too much time")
+			}
 		}
 	}
 }
