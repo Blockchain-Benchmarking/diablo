@@ -49,7 +49,7 @@ func NewSimpleBenchmark(tps int) (Benchmark, error) {
 	}, nil
 }
 
-func (s *SimpleBenchmark) Run(accounts []behavior.Account, _ time.Duration, secondaries map[string]*network.Secondary, coordinator *core.Coordinator, endpoints []string) error {
+func (s *SimpleBenchmark) Run(accounts []behavior.Account, d time.Duration, secondaries map[string]*network.Secondary, coordinator *core.Coordinator, endpoints []string) error {
 	wk, err := createStubbornPaymentUsersFromAccounts(accounts, s.Tps, s.Blockchain, endpoints, s.User.Params)
 	if err != nil {
 		return fmt.Errorf("failed to create users: %w", err)
@@ -87,10 +87,18 @@ func (s *SimpleBenchmark) Run(accounts []behavior.Account, _ time.Duration, seco
 		i = i + n
 	}
 
-	err = coordinator.SendStartToAll(time.Now().Add(5 * time.Second)) //TODO report delay on secondary side
+	startTime := time.Now().Add(5 * time.Second)
+	err = coordinator.SendStartToAll(startTime) //TODO report delay on secondary side
 	if err != nil {
 		return err
 	}
+
+	time.Sleep(d + 10*time.Second)
+
+	res, _ := coordinator.CollectResultsWithInterval(startTime, startTime.Add(d))
+	latency := behavior.AverageLatency(res)
+	throughput := behavior.Throughput(res, d)
+	logging.Infof("Average Latency: %s, Throughput: %d/s", latency.String(), throughput)
 
 	return nil
 }
