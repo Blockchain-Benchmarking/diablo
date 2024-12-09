@@ -152,6 +152,13 @@ func createStubbornUsersFromAccounts(accounts []blockchain.Account, tps int, imp
 			return nil, fmt.Errorf("failed to create blockchain client for contract deployment: %w", err)
 		}
 
+		wdir, err := os.Getwd()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get current directory: %w", err)
+		}
+
+		logging.Debugf("working dir: %s", wdir)
+
 		abiBytes, err := os.ReadFile(user.AbiPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read file %s: %w", user.AbiPath, err)
