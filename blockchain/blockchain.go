@@ -1,6 +1,11 @@
 package blockchain
 
-import "time"
+import (
+	"errors"
+	"time"
+)
+
+var TimeoutError = errors.New("timeout")
 
 var Blockchains = map[string]Blockchain{
 	"ethereum": &EthereumClient{},

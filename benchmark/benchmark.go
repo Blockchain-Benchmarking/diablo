@@ -1,12 +1,12 @@
 package benchmark
 
 import (
+	"diablo/blockchain"
 	"diablo/core"
 	"diablo/core/network"
-	"diablo/workload/behavior"
 	"time"
 )
 
 type Benchmark interface {
-	Run(accounts []behavior.Account, duration time.Duration, secondaries map[string]*network.Secondary, coordinator *core.Coordinator, endpoints []string) error
+	Run(accounts []blockchain.Account, duration time.Duration, secondaries map[string]*network.Secondary, coordinator *core.Coordinator, endpoints []string) error
 }

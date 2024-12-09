@@ -1,11 +1,13 @@
 package benchmark
 
 import (
+	"diablo/blockchain"
 	"diablo/core"
 	"diablo/core/logging"
 	"diablo/core/network"
 	"diablo/workload/behavior"
 	"diablo/workload/payment"
+	"diablo/workload/store"
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"os"
@@ -17,8 +19,8 @@ const (
 	defaultBlockchain = "ethereum"
 )
 
-var (
-	defaultUser = User{
+var userTypes = map[string]User{
+	"stubbornPaymentUser": {
 		Name: "stubbornPaymentUser",
 		Params: map[string]interface{}{
 			"timeout":      "15s",
@@ -27,8 +29,18 @@ var (
 			"payments":     []payment.Info{},
 			"duration":     0,
 		},
-	}
-)
+	},
+	"stubbornStoreUser": {
+		Name: "stubbornStoreUser",
+		Params: map[string]interface{}{
+			"timeout":      "15s",
+			"max_attempts": 1,
+			"random":       true,
+			"actions":      []store.Info{},
+			"duration":     0,
+		},
+	},
+}
 
 type SimpleBenchmark struct {
 	Blockchain string `yaml:"blockchain"`
@@ -41,16 +53,21 @@ type User struct {
 	Params map[string]interface{} `yaml:"params"`
 }
 
-func NewSimpleBenchmark(tps int) (Benchmark, error) {
+func NewSimpleBenchmark(tps int, userType string) (Benchmark, error) {
+	def, ok := userTypes[userType]
+	if !ok {
+		return nil, fmt.Errorf("user type %s not defined for simple benchmark", userType)
+	}
+
 	return &SimpleBenchmark{
 		Blockchain: defaultBlockchain,
-		User:       defaultUser,
+		User:       def,
 		Tps:        tps,
 	}, nil
 }
 
-func (s *SimpleBenchmark) Run(accounts []behavior.Account, d time.Duration, secondaries map[string]*network.Secondary, coordinator *core.Coordinator, endpoints []string) error {
-	wk, err := createStubbornPaymentUsersFromAccounts(accounts, s.Tps, s.Blockchain, endpoints, s.User.Params)
+func (s *SimpleBenchmark) Run(accounts []blockchain.Account, d time.Duration, secondaries map[string]*network.Secondary, coordinator *core.Coordinator, endpoints []string) error {
+	wk, err := createStubbornUsersFromAccounts(accounts, s.Tps, s.Blockchain, endpoints, s.User.Name, s.User.Params)
 	if err != nil {
 		return fmt.Errorf("failed to create users: %w", err)
 	}
@@ -103,9 +120,12 @@ func (s *SimpleBenchmark) Run(accounts []behavior.Account, d time.Duration, seco
 	return nil
 }
 
-func createStubbornPaymentUsersFromAccounts(accounts []behavior.Account, tps int, blockchain string, endpoints []string, userParams map[string]interface{}) ([]behavior.User, error) {
+func createStubbornUsersFromAccounts(accounts []blockchain.Account, tps int, implementation string, endpoints []string, name string, userParams map[string]interface{}) ([]behavior.User, error) {
 	users := make([]behavior.User, len(accounts))
-	userType := payment.StubbornPaymentUser{}
+	userType, ok := core.Users[name]
+	if !ok {
+		return nil, fmt.Errorf("user %s not implemented", name)
+	}
 
 	var addresses []string
 	for _, acc := range accounts {
@@ -125,7 +145,7 @@ func createStubbornPaymentUsersFromAccounts(accounts []behavior.Account, tps int
 		}
 
 		userParams["tps"] = userTps
-		users[i], err = userType.New(blockchain, behavior.Config{
+		users[i], err = userType.New(implementation, blockchain.Config{
 			Id:         strconv.Itoa(i),
 			Endpoint:   endpoints[i%len(endpoints)],
 			Addresses:  addresses,

@@ -1,6 +1,7 @@
 package benchmark
 
 import (
+	"diablo/blockchain"
 	"diablo/core"
 	"diablo/core/logging"
 	"diablo/core/network"
@@ -26,11 +27,11 @@ type Coordinates struct {
 	Latency    time.Duration `json:"Latency"`
 }
 
-func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, _ map[string]*network.Secondary, coordinator *core.Coordinator, endpoints []string) error {
+func (c *CustomBenchmark) Run(accounts []blockchain.Account, _ time.Duration, _ map[string]*network.Secondary, coordinator *core.Coordinator, endpoints []string) error {
 	tps := 200
 	tpsAdd := 200
 
-	users, err := createStubbornPaymentUsersFromAccounts(accounts, tps, "ethereum", endpoints, map[string]interface{}{
+	users, err := createStubbornUsersFromAccounts(accounts, tps, "ethereum", endpoints, "stubbornPaymentUser", map[string]interface{}{
 		"timeout":      "15s",
 		"max_attempts": 1,
 		"random":       true,
@@ -110,7 +111,7 @@ func (c *CustomBenchmark) Run(accounts []behavior.Account, _ time.Duration, _ ma
 
 		tps = newTps
 
-		updatedUsers, err := createStubbornPaymentUsersFromAccounts(accounts, tps, "ethereum", endpoints, map[string]interface{}{
+		updatedUsers, err := createStubbornUsersFromAccounts(accounts, tps, "ethereum", endpoints, "stubbornPaymentUser", map[string]interface{}{
 			"timeout":      "15s",
 			"max_attempts": 1,
 			"random":       true,

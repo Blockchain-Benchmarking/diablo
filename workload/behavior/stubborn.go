@@ -1,6 +1,7 @@
 package behavior
 
 import (
+	"diablo/blockchain"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,8 +9,6 @@ import (
 )
 
 const StubbornResult = "stubborn-result"
-
-var TimeoutError = errors.New("timeout")
 
 type StubbornBehavior struct {
 	MaxAttempts int32 `json:"max_attempts"`
@@ -21,7 +20,7 @@ func NewStubbornBehavior(maxRetries int32) *StubbornBehavior {
 
 func (s *StubbornBehavior) PerformStubbornAction(f func() error, actionType string) StubbornAction {
 	action := StubbornAction{
-		Type: actionType,
+		Kind: actionType,
 	}
 	action.StartTime = time.Now()
 	action.Attempts = 1
@@ -34,7 +33,7 @@ func (s *StubbornBehavior) PerformStubbornAction(f func() error, actionType stri
 			action.EndTime = time.Now()
 			return action
 		} else {
-			if errors.Is(TimeoutError, err) {
+			if errors.Is(blockchain.TimeoutError, err) {
 				action.Timeout = true
 			}
 		}
@@ -49,7 +48,7 @@ func (s *StubbornBehavior) PerformStubbornAction(f func() error, actionType stri
 type StubbornAction struct {
 	StartTime time.Time `json:"start_time"`
 	EndTime   time.Time `json:"end_time"`
-	Type      string    `json:"type"`
+	Kind      string    `json:"kind"`
 	Attempts  int       `json:"attempts"`
 	Passed    bool      `json:"success"`
 	Timeout   bool      `json:"timeout"`

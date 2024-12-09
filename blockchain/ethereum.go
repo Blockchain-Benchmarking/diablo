@@ -2,7 +2,6 @@ package blockchain
 
 import (
 	"context"
-	"diablo/workload/behavior"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum"
@@ -289,7 +288,7 @@ func (e *EthereumClient) waitForReceipt(txHash common.Hash, timeout time.Duratio
 
 		if errors.Is(err, ethereum.NotFound) {
 			if time.Since(start) > timeout {
-				return nil, behavior.TimeoutError
+				return nil, TimeoutError
 			}
 			continue
 		}

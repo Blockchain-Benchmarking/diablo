@@ -23,6 +23,7 @@ var duration time.Duration
 var configFile string
 
 var tps int
+var userType string
 var endpoints []string
 
 //var simpleFlags SimpleFlags
@@ -39,7 +40,7 @@ var primaryCmd = &cobra.Command{
 
 		core.SetVerbosity(verbosity)
 
-		p, err := nodes.NewPrimary(port, secondaries, benchmark, configFile, accountsFile, duration, tps, endpoints)
+		p, err := nodes.NewPrimary(port, secondaries, benchmark, configFile, accountsFile, duration, tps, userType, endpoints)
 		cobra.CheckErr(err)
 
 		if outputFile != "" {
@@ -96,6 +97,8 @@ func init() {
 	primaryCmd.Flags().StringVar(&configFile, "config", "", "config file")
 
 	primaryCmd.Flags().IntVar(&tps, "tps", defaultTps, "transactions per second")
+	primaryCmd.Flags().StringVar(&userType, "user", defaultUser, "user to use")
+
 	primaryCmd.Flags().StringArrayVarP(&endpoints, "endpoints", "e", defaultEndpoints, "endpoints")
 
 	//TODO mark mandatory flags

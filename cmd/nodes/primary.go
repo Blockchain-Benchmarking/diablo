@@ -2,6 +2,7 @@ package nodes
 
 import (
 	"diablo/benchmark"
+	"diablo/blockchain"
 	"diablo/core"
 	"diablo/core/logging"
 	"diablo/core/network"
@@ -17,7 +18,7 @@ import (
 type Primary struct {
 	NumSecondary int
 	ConfigFile   string
-	Accounts     []behavior.Account
+	Accounts     []blockchain.Account
 	ListenPort   int
 	Duration     time.Duration
 
@@ -25,15 +26,16 @@ type Primary struct {
 	//if simple benchmark:
 	Tps       int
 	Endpoints []string
+	User      string
 }
 
-func NewPrimary(port int, secondary int, benchmark string, configPath string, accountsPath string, duration time.Duration, tps int, endpoints []string) (*Primary, error) {
+func NewPrimary(port int, secondary int, benchmark string, configPath string, accountsPath string, duration time.Duration, tps int, user string, endpoints []string) (*Primary, error) {
 	accBytes, err := os.ReadFile(accountsPath)
 	if err != nil {
 		return nil, err
 	}
 
-	var accounts []behavior.Account
+	var accounts []blockchain.Account
 	err = yaml.Unmarshal(accBytes, &accounts)
 	if err != nil {
 		return nil, err
@@ -49,6 +51,7 @@ func NewPrimary(port int, secondary int, benchmark string, configPath string, ac
 		Benchmark: benchmark,
 		Tps:       tps,
 		Endpoints: endpoints,
+		User:      user,
 	}, nil
 }
 
@@ -71,7 +74,7 @@ func (p *Primary) Run() ([]behavior.Result, error) {
 	var b benchmark.Benchmark
 	switch p.Benchmark {
 	case "simple":
-		b, err = benchmark.NewSimpleBenchmark(p.Tps)
+		b, err = benchmark.NewSimpleBenchmark(p.Tps, p.User)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create benchmark: %s", err)
 		}

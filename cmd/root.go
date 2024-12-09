@@ -15,6 +15,7 @@ const (
 	defaultDuration time.Duration = 2 * time.Minute
 
 	defaultBenchmark = "simple"
+	defaultUser      = "stubbornPaymentUser"
 	defaultTps       = 2000
 )
 
