@@ -58,7 +58,7 @@ func (c *CustomBenchmark) Run(accounts []blockchain.Account, _ time.Duration, _ 
 
 		time.Sleep(2*time.Minute + 30*time.Second + 10*time.Second) //10 additional seconds for last results to arrive
 
-		res, ok := coordinator.CollectResultsWithInterval(startTime.Add(5*time.Second), endTime.Add(5*time.Second)) //5 seconds warmup
+		res, ok := coordinator.CollectResultsWithInterval(startTime, endTime.Add(15*time.Second)) //5 seconds warmup
 		logging.Infof("intermediary %d results", len(res))
 
 		for !ok {
