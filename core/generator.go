@@ -172,7 +172,7 @@ func (g *Generator) usersRunner() {
 
 						go func() {
 							user.Run(g.results, g.stop)
-							g.wg.Done()
+							userWg.Done()
 						}()
 					}()
 				} else {
