@@ -146,6 +146,14 @@ func (e *EthereumClient) DeployContract(abiString string, bytecode []byte, param
 		return "", fmt.Errorf("failed to create transactor: %w", err)
 	}
 
+	// Suggest gas price for deployment
+	gasPrice, err := e.client.SuggestGasPrice(context.Background())
+	if err != nil {
+		return "", fmt.Errorf("failed to suggest gas price: %w", err)
+	}
+	auth.GasPrice = gasPrice
+	auth.GasLimit = uint64(3000000)
+
 	parsedABI, err := abi.JSON(strings.NewReader(abiString))
 	if err != nil {
 		return "", fmt.Errorf("failed to parse ABI: %w", err)
@@ -157,8 +165,12 @@ func (e *EthereumClient) DeployContract(abiString string, bytecode []byte, param
 	}
 
 	receipt, err := bind.WaitMined(context.Background(), e.client, tx)
-	if err != nil || receipt.Status != 1 {
-		return "", fmt.Errorf("contract deployment failed: %w", err)
+	if err != nil {
+		return "", fmt.Errorf("failed to wait for transaction to be mined: %w", err)
+	}
+
+	if receipt.Status != 1 {
+		return "", fmt.Errorf("contract deployment transaction failed")
 	}
 
 	return address.Hex(), nil
