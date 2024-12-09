@@ -19,8 +19,10 @@ func NewStubbornBehavior(maxRetries int32) *StubbornBehavior {
 	return &StubbornBehavior{maxRetries}
 }
 
-func (s *StubbornBehavior) PerformStubbornAction(f func() error) StubbornAction {
-	action := StubbornAction{}
+func (s *StubbornBehavior) PerformStubbornAction(f func() error, actionType string) StubbornAction {
+	action := StubbornAction{
+		Type: actionType,
+	}
 	action.StartTime = time.Now()
 	action.Attempts = 1
 
@@ -47,6 +49,7 @@ func (s *StubbornBehavior) PerformStubbornAction(f func() error) StubbornAction 
 type StubbornAction struct {
 	StartTime time.Time `json:"start_time"`
 	EndTime   time.Time `json:"end_time"`
+	Type      string    `json:"type"`
 	Attempts  int       `json:"attempts"`
 	Passed    bool      `json:"success"`
 	Timeout   bool      `json:"timeout"`

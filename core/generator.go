@@ -170,7 +170,10 @@ func (g *Generator) usersRunner() {
 							logging.Infof("starting users with %s delay", (-1 * waitingTime).String())
 						}
 
-						go user.Run(userWg, g.results, g.stop)
+						go func() {
+							user.Run(g.results, g.stop)
+							g.wg.Done()
+						}()
 					}()
 				} else {
 					err := existing.Restart(behavior.RestartInfo{NewParameters: user, RestartTime: startTime})

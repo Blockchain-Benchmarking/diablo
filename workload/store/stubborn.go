@@ -1,4 +1,4 @@
-package payment
+package store
 
 import (
 	"diablo/blockchain"
@@ -12,35 +12,44 @@ import (
 	"time"
 )
 
-const STUBBORN_PAYMENT_USER = "stubbornPaymentUser"
+const STUBBORN_STORE_USER = "stubbornStoreUser"
 
-// specific transaction or many trnsactions randomly at certain rate
-type StubbornPaymentUser struct {
+const (
+	Read = iota
+	Write
+)
+
+type StubbornStoreUser struct {
 	Implementation string
 	Config         blockchain.Config
-	Timeout        time.Duration
 
+	ContractAddress string
+
+	//TODO put all these in stubborn behavior ?
+	Actions  []Info
+	Random   bool
+	Tps      int
+	Duration time.Duration
+	Timeout  time.Duration
 	Stubborn *behavior.StubbornBehavior
-
-	Payments []Info //Chronologically sorted list of interactions to complete or list of interactions to iterate through with below indicated tps
-
-	Random bool //set to true if the interactions should be random (payments must be empty)
-
-	Tps int //0 if interactions should be completed following their schedule
-
-	Duration time.Duration //0 if the user should run as long as possible
 
 	App       *Application
 	restartCh chan behavior.RestartInfo
 }
 
 type Info struct {
-	Time   int64   `json:"time"`
-	Amount float64 `json:"amount"`
-	To     string  `json:"to"`
+	Time  int64
+	Key   string
+	Value string
+	Type  int
 }
 
-func (s *StubbornPaymentUser) New(implementation string, config blockchain.Config, params map[string]interface{}) (behavior.User, error) {
+func (s *StubbornStoreUser) New(implementation string, config blockchain.Config, params map[string]interface{}) (behavior.User, error) {
+	contractAddress, ok := params["contractAddress"].(string)
+	if !ok {
+		return nil, fmt.Errorf("param 'contractAddress' is required")
+	}
+
 	timeoutString, ok := params["timeout"].(string)
 	if !ok {
 		return nil, fmt.Errorf("params 'timeout' should be specified")
@@ -61,9 +70,9 @@ func (s *StubbornPaymentUser) New(implementation string, config blockchain.Confi
 		return nil, fmt.Errorf("params 'random' should be specified")
 	}
 
-	payments, ok := params["payments"].([]Info)
+	actions, ok := params["actions"].([]Info)
 	if !ok {
-		payments = make([]Info, 0)
+		actions = make([]Info, 0)
 	}
 
 	tps, ok := params["tps"].(int)
@@ -80,14 +89,15 @@ func (s *StubbornPaymentUser) New(implementation string, config blockchain.Confi
 		}
 	}
 
-	u := &StubbornPaymentUser{
-		Implementation: implementation,
-		Config:         config,
-		Timeout:        timeout,
-		Stubborn:       behavior.NewStubbornBehavior(int32(maxRetries)),
+	u := &StubbornStoreUser{
+		Implementation:  implementation,
+		Config:          config,
+		ContractAddress: contractAddress,
+		Timeout:         timeout,
+		Stubborn:        behavior.NewStubbornBehavior(int32(maxRetries)),
 
-		Random:   random,
-		Payments: payments,
+		Actions: actions,
+		Random:  random,
 
 		Tps: tps,
 
@@ -98,7 +108,7 @@ func (s *StubbornPaymentUser) New(implementation string, config blockchain.Confi
 	return u, nil
 }
 
-func (s *StubbornPaymentUser) resetParameters(newParameters StubbornPaymentUser) {
+func (s *StubbornStoreUser) resetParameters(newParameters StubbornStoreUser) {
 	if s.Implementation != newParameters.Implementation {
 		s.App = nil
 		s.Implementation = newParameters.Implementation
@@ -107,17 +117,17 @@ func (s *StubbornPaymentUser) resetParameters(newParameters StubbornPaymentUser)
 	s.Timeout = newParameters.Timeout
 	s.Stubborn = newParameters.Stubborn
 	s.Random = newParameters.Random
-	s.Payments = newParameters.Payments
+	s.Actions = newParameters.Actions
 	s.Tps = newParameters.Tps
 	s.Duration = newParameters.Duration
 }
 
-func (s *StubbornPaymentUser) Empty() behavior.User {
-	return &StubbornPaymentUser{Stubborn: &behavior.StubbornBehavior{}}
+func (s *StubbornStoreUser) Empty() behavior.User {
+	return &StubbornStoreUser{Stubborn: &behavior.StubbornBehavior{}}
 }
 
-func (s *StubbornPaymentUser) UnmarshalUsers(buf []byte) ([]behavior.User, error) {
-	var res []*StubbornPaymentUser
+func (s *StubbornStoreUser) UnmarshalUsers(buf []byte) ([]behavior.User, error) {
+	var res []*StubbornStoreUser
 	err := json.Unmarshal(buf, &res)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal stubborn payment users: %w", err)
@@ -131,16 +141,16 @@ func (s *StubbornPaymentUser) UnmarshalUsers(buf []byte) ([]behavior.User, error
 	return users, nil
 }
 
-func (s *StubbornPaymentUser) ID() string {
+func (s *StubbornStoreUser) ID() string {
 	return s.Config.Id
 }
 
-func (s *StubbornPaymentUser) EmptyResult() behavior.Result {
+func (s *StubbornStoreUser) EmptyResult() behavior.Result {
 	return &behavior.StubbornAction{}
 }
 
-func (s *StubbornPaymentUser) Name() string {
-	return STUBBORN_PAYMENT_USER
+func (s *StubbornStoreUser) Name() string {
+	return STUBBORN_STORE_USER
 }
 
 func tickerChannel(t *time.Ticker) <-chan time.Time {
@@ -151,14 +161,14 @@ func tickerChannel(t *time.Ticker) <-chan time.Time {
 }
 
 // TODO defer wg.done from outside ?
-func (s *StubbornPaymentUser) Run(results chan behavior.Result, stop chan struct{}) {
+func (s *StubbornStoreUser) Run(results chan behavior.Result, stop chan struct{}) {
 	s.restartCh = make(chan behavior.RestartInfo)
 	interval := time.Second
 
 reset:
 	if s.App == nil {
 		var err error
-		s.App, err = NewPaymentApplication(s.Config, s.Implementation)
+		s.App, err = New(s.Implementation, s.Config, s.ContractAddress)
 		if err != nil {
 			logging.Errorf("failed to init user app: %s", err.Error())
 			return
@@ -166,7 +176,7 @@ reset:
 	}
 
 	//Scheduled run
-	if len(s.Payments) != 0 {
+	if len(s.Actions) != 0 {
 		s.runSchedule(results)
 		return
 	}
@@ -178,14 +188,13 @@ reset:
 
 	currentTransaction := 0
 	transactionsWg := &sync.WaitGroup{}
-	//logging.Infof("user %s has tps %d", s.ID(), s.Tps)
 	for i := 0; i < s.Tps; i++ {
 		transactionsWg.Add(1)
 		go func() {
 			if s.Random {
 				results <- s.executeTransaction(s.randomTransaction())
 			} else {
-				results <- s.executeTransaction(s.Payments[currentTransaction%len(s.Payments)])
+				results <- s.executeTransaction(s.Actions[currentTransaction%len(s.Actions)])
 				currentTransaction++
 			}
 			transactionsWg.Done()
@@ -206,10 +215,9 @@ reset:
 					return
 				case info := <-s.restartCh:
 					transactionsWg.Wait()
-					s.resetParameters(*info.NewParameters.(*StubbornPaymentUser))
+					s.resetParameters(*info.NewParameters.(*StubbornStoreUser))
 					waitingTime := time.Until(info.RestartTime)
 					if waitingTime > 0 {
-						//logging.Infof(waitingTime.String() + " until start")
 						time.Sleep(waitingTime)
 					} else {
 						logging.Infof("starting user with %s delay", (-1 * waitingTime).String())
@@ -218,13 +226,10 @@ reset:
 				}
 			}
 		case info := <-s.restartCh:
-			//logging.Infof("waiting for transactions before restart")
 			transactionsWg.Wait()
-			//logging.Infof("transactions done, restarting")
-			s.resetParameters(*info.NewParameters.(*StubbornPaymentUser))
+			s.resetParameters(*info.NewParameters.(*StubbornStoreUser))
 			waitingTime := time.Until(info.RestartTime)
 			if waitingTime > 0 {
-				//logging.Infof(waitingTime.String() + " until start")
 				time.Sleep(waitingTime)
 			} else {
 				logging.Warnf("starting user with %s delay", (-1 * waitingTime).String())
@@ -240,7 +245,7 @@ reset:
 					if s.Random {
 						results <- s.executeTransaction(s.randomTransaction())
 					} else {
-						results <- s.executeTransaction(s.Payments[currentTransaction%len(s.Payments)])
+						results <- s.executeTransaction(s.Actions[currentTransaction%len(s.Actions)])
 						currentTransaction++
 					}
 					transactionsWg.Done()
@@ -255,9 +260,9 @@ reset:
 	}
 }
 
-func (s *StubbornPaymentUser) runSchedule(results chan behavior.Result) {
+func (s *StubbornStoreUser) runSchedule(results chan behavior.Result) {
 	//Execute all transactions sequentially once and return
-	for _, info := range s.Payments {
+	for _, info := range s.Actions {
 		wait := time.Unix(info.Time, 0).Sub(time.Now())
 		if wait > 0 {
 			time.Sleep(wait)
@@ -271,40 +276,55 @@ func (s *StubbornPaymentUser) runSchedule(results chan behavior.Result) {
 	}
 }
 
-func (s *StubbornPaymentUser) Restart(info behavior.RestartInfo) error {
-	_, ok := info.NewParameters.(*StubbornPaymentUser)
+func (s *StubbornStoreUser) Restart(info behavior.RestartInfo) error {
+	_, ok := info.NewParameters.(*StubbornStoreUser)
 	if !ok {
 		return fmt.Errorf("invalid new stubbornPaymentUser")
 	}
 
-	//logging.Debugf("restart signal sending")
 	s.restartCh <- info
-	//logging.Debugf("sent restart signal")
 
 	return nil
 }
 
-func (s *StubbornPaymentUser) randomTransaction() Info {
-	var to string
-	var amount float64
-
-	for to == "" || to == s.Config.Address {
-		toIndex := rand.Intn(len(s.App.GetOthers()))
-		to = s.App.GetOthers()[toIndex]
+func (s *StubbornStoreUser) randomTransaction() Info {
+	info := Info{
+		Key:   randomString(4),
+		Value: "",
+		Type:  rand.Intn(2),
 	}
 
-	for amount == 0 {
-		amount = rand.Float64()
+	if info.Type == Write {
+		info.Value = randomString(4)
 	}
 
-	return Info{
-		Amount: amount,
-		To:     to,
-	}
+	return info
 }
 
-func (s *StubbornPaymentUser) executeTransaction(info Info) behavior.StubbornAction {
+func (s *StubbornStoreUser) executeTransaction(info Info) behavior.StubbornAction {
+	var actionType string
+	if info.Type == Read {
+		actionType = "read"
+	} else if info.Type == Write {
+		actionType = "write"
+	}
+
 	return s.Stubborn.PerformStubbornAction(func() error {
-		return s.App.Pay(info.To, info.Amount, s.Timeout)
-	}, "transfer")
+		if info.Type == Read {
+			_, err := s.App.GetItem(info.Key)
+			return err
+		}
+
+		return s.App.SetItem(info.Key, info.Value, s.Timeout)
+	}, actionType)
+}
+
+var letters = []rune("abcdefghijklmnopqrstuvwxyz")
+
+func randomString(n int) string {
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
 }

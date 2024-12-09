@@ -1,8 +1,8 @@
 package behavior
 
 import (
+	"diablo/blockchain"
 	"diablo/core/logging"
-	"sync"
 	"time"
 )
 
@@ -10,12 +10,12 @@ type User interface {
 	Empty() User
 	UnmarshalUsers(buf []byte) ([]User, error)
 	EmptyResult() Result
-	New(blockchain string, config Config, params map[string]interface{}) (User, error)
+	New(blockchain string, config blockchain.Config, params map[string]interface{}) (User, error)
 
 	Name() string
 	ID() string
 
-	Run(wg *sync.WaitGroup, results chan Result, stop chan struct{})
+	Run(results chan Result, stop chan struct{})
 	Restart(info RestartInfo) error
 }
 
@@ -70,17 +70,4 @@ func AverageLatency(results []Result) time.Duration {
 
 	logging.Infof("total success %d/%d, total latency %s, result is %s", total, len(results), sum.String(), (sum / time.Duration(total)).String())
 	return sum / time.Duration(total)
-}
-
-type Account struct {
-	Address    string `yaml:"address"`
-	PrivateKey string `yaml:"private"`
-}
-
-type Config struct {
-	Id         string   `json:"id"`
-	Endpoint   string   `json:"endpoint"`
-	Addresses  []string `json:"addresses"`
-	PrivateKey string   `json:"private_key"`
-	Address    string   `json:"address"`
 }
