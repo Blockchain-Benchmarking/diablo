@@ -58,13 +58,13 @@ func (c *CustomBenchmark) Run(accounts []blockchain.Account, _ time.Duration, _ 
 
 		time.Sleep(2*time.Minute + 30*time.Second + 10*time.Second) //10 additional seconds for last results to arrive
 
-		res, ok := coordinator.CollectResultsWithInterval(startTime, endTime.Add(15*time.Second)) //5 seconds warmup
+		res, ok := coordinator.CollectResultsWithInterval(startTime, endTime.Add(20*time.Second))
 		logging.Infof("intermediary %d results", len(res))
 
 		for !ok {
 			logging.Warnf("missing %d results, waiting", tps*120-len(res))
 			time.Sleep(5 * time.Second)
-			res, ok = coordinator.CollectResultsWithInterval(startTime, endTime)
+			res, ok = coordinator.CollectResultsWithInterval(startTime, endTime.Add(20*time.Second))
 			logging.Infof("intermediary %d results", len(res))
 		}
 
