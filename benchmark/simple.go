@@ -39,8 +39,8 @@ var userTypes = map[string]User{
 			"actions":      []store.Info{},
 			"duration":     0,
 		},
-		CompiledContractPath: "../workload/store/contract/StoreCompiled",
-		AbiPath:              "../workload/store/contract/Store.abi",
+		CompiledContractPath: "workload/store/contract/StoreCompiled",
+		AbiPath:              "workload/store/contract/Store.abi",
 	},
 }
 
@@ -151,13 +151,6 @@ func createStubbornUsersFromAccounts(accounts []blockchain.Account, tps int, imp
 		if err != nil {
 			return nil, fmt.Errorf("failed to create blockchain client for contract deployment: %w", err)
 		}
-
-		wdir, err := os.Getwd()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get current directory: %w", err)
-		}
-
-		logging.Debugf("working dir: %s", wdir)
 
 		abiBytes, err := os.ReadFile(user.AbiPath)
 		if err != nil {
