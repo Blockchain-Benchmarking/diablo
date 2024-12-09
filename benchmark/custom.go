@@ -14,9 +14,8 @@ import (
 )
 
 const (
-	maxTps                  = 1600
-	maxThroughputLossFactor = 0.25
-	maxLatencyDiff          = 30 * time.Second
+	maxTps         = 800
+	maxLatencyDiff = 5 * time.Second
 )
 
 type CustomBenchmark struct {
@@ -58,13 +57,13 @@ func (c *CustomBenchmark) Run(accounts []blockchain.Account, _ time.Duration, _ 
 
 		time.Sleep(2*time.Minute + 30*time.Second + 10*time.Second) //10 additional seconds for last results to arrive
 
-		res, ok := coordinator.CollectResultsWithInterval(startTime, endTime.Add(15*time.Second))
+		res, ok := coordinator.CollectResultsWithInterval(startTime, endTime.Add(10*time.Second))
 		logging.Infof("intermediary %d results", len(res))
 
 		for !ok {
 			logging.Warnf("missing %d results, waiting", tps*120-len(res))
 			time.Sleep(5 * time.Second)
-			res, ok = coordinator.CollectResultsWithInterval(startTime, endTime.Add(15*time.Second))
+			res, ok = coordinator.CollectResultsWithInterval(startTime, endTime.Add(10*time.Second))
 			logging.Infof("intermediary %d results", len(res))
 		}
 
@@ -92,8 +91,8 @@ func (c *CustomBenchmark) Run(accounts []blockchain.Account, _ time.Duration, _ 
 			if ldiff > maxLatencyDiff {
 				logging.Warnf("latency difference reached %s", ldiff.String())
 				newTps = (prev + tps) / 2
-			} else if (tps - curPerf.Throughput) > int(float64(tps)*maxThroughputLossFactor) {
-				logging.Warnf("throughput failed to keep up, difference was %d vs %d allowed", tps-curPerf.Throughput, int(float64(tps)*maxThroughputLossFactor))
+			} else if curPerf.Throughput < int(float64(tps)*120*0.95) {
+				logging.Warnf("throughput failed to keep up, difference was %d vs %d allowed", tps-curPerf.Throughput, int(float64(tps)*120*0.95))
 				newTps = (prev + tps) / 2
 			} else {
 				logging.Infof("performance improving, increasing tps")
