@@ -39,8 +39,8 @@ var userTypes = map[string]User{
 			"actions":      []store.Info{},
 			"duration":     0,
 		},
-		CompiledContractPath: "../workload/store/StoreCompiled",
-		AbiPath:              "../workload/store/Store.abi",
+		CompiledContractPath: "../workload/store/contract/StoreCompiled",
+		AbiPath:              "../workload/store/contract/Store.abi",
 	},
 }
 
@@ -77,7 +77,6 @@ func (s *SimpleBenchmark) Run(accounts []blockchain.Account, d time.Duration, se
 	}
 
 	//same schedule for everyone
-	logging.Infof("tps per user: %d", s.Tps/len(wk))
 	perSecondary := len(wk) / len(secondaries)
 	remainder := len(wk) % len(secondaries)
 

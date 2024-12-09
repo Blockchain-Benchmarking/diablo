@@ -94,8 +94,6 @@ func (c *Coordinator) SendUsers(s *network.Secondary, users map[string][]behavio
 		return fmt.Errorf("no users to send")
 	}
 
-	logging.Infof("sending users in %d batches to %s", len(res), s.Addr())
-
 	for _, r := range res {
 		buf, err := marshallUsers(r)
 		if err != nil {
@@ -246,7 +244,6 @@ func (c *Coordinator) handleGeneratorMessages(s *network.Secondary) {
 func marshallUsers(users map[string][]behavior.User) (map[string][]byte, error) {
 	result := make(map[string][]byte)
 	for k, v := range users {
-		logging.Debugf("marshaling users type: %s", k)
 		buf, err := json.Marshal(v)
 		if err != nil {
 			return nil, fmt.Errorf("failed to encode workload: %w", err)
