@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"context"
+	"diablo/core/logging"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum"
@@ -146,11 +147,13 @@ func (e *EthereumClient) DeployContract(abiString string, bytecode []byte, param
 		return "", fmt.Errorf("failed to create transactor: %w", err)
 	}
 
-	// Suggest gas price for deployment
 	gasPrice, err := e.client.SuggestGasPrice(context.Background())
 	if err != nil {
 		return "", fmt.Errorf("failed to suggest gas price: %w", err)
 	}
+
+	logging.Debugf("suggested gas price %d", gasPrice)
+
 	auth.GasPrice = gasPrice
 	auth.GasLimit = uint64(3000000)
 
