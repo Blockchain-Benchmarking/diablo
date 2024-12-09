@@ -91,9 +91,9 @@ func (c *CustomBenchmark) Run(accounts []blockchain.Account, _ time.Duration, _ 
 			if ldiff > maxLatencyDiff {
 				logging.Warnf("latency difference reached %s", ldiff.String())
 				newTps = (prev + tps) / 2
-			} else if curPerf.Throughput < int(float64(tps)*120*0.95) {
-				logging.Warnf("throughput failed to keep up, difference was %d vs %d allowed", tps-curPerf.Throughput, int(float64(tps)*120*0.95))
+			} else if curPerf.Throughput < int(float64(tps)*0.95) {
 				newTps = (prev + tps) / 2
+				logging.Warnf("throughput failed to keep up, trying with %d", newTps)
 			} else {
 				logging.Infof("performance improving, increasing tps")
 				newTps = int(math.Min(float64(tps+tpsAdd), maxTps))
