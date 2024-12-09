@@ -68,6 +68,8 @@ func (e *EthereumClient) Transfer(amount float64, to string, timeout time.Durati
 		return fmt.Errorf("failed to get gas price: %w", err)
 	}
 
+	logging.Debugf("suggested gas price %d", gasPrice)
+
 	gasCost := new(big.Int).Mul(gasPrice, big.NewInt(int64(gasLimit)))
 	totalCost := new(big.Int).Add(value, gasCost)
 
