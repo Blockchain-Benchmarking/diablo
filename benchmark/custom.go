@@ -31,11 +31,11 @@ func (c *CustomBenchmark) Run(accounts []blockchain.Account, _ time.Duration, _ 
 	tps := 200
 	tpsAdd := 200
 
-	users, err := createStubbornUsersFromAccounts(accounts, tps, "ethereum", endpoints, "stubbornPaymentUser", map[string]interface{}{
-		"timeout":      "15s",
-		"max_attempts": 1,
-		"random":       true,
-	})
+	defaultStubbornPaymentUser, ok := userTypes["stubbornPaymentUser"]
+	if !ok {
+		return fmt.Errorf("stubbornPaymentUser not implemented")
+	}
+	users, err := createStubbornUsersFromAccounts(accounts, tps, "ethereum", endpoints, defaultStubbornPaymentUser)
 
 	if err != nil {
 		return err
@@ -111,11 +111,7 @@ func (c *CustomBenchmark) Run(accounts []blockchain.Account, _ time.Duration, _ 
 
 		tps = newTps
 
-		updatedUsers, err := createStubbornUsersFromAccounts(accounts, tps, "ethereum", endpoints, "stubbornPaymentUser", map[string]interface{}{
-			"timeout":      "15s",
-			"max_attempts": 1,
-			"random":       true,
-		})
+		updatedUsers, err := createStubbornUsersFromAccounts(accounts, tps, "ethereum", endpoints, defaultStubbornPaymentUser)
 
 		if err != nil {
 			return err

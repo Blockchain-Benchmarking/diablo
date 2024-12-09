@@ -39,6 +39,8 @@ var userTypes = map[string]User{
 			"actions":      []store.Info{},
 			"duration":     0,
 		},
+		CompiledContractPath: "../workload/store/StoreCompiled",
+		AbiPath:              "../workload/store/Store.abi",
 	},
 }
 
@@ -49,8 +51,10 @@ type SimpleBenchmark struct {
 }
 
 type User struct {
-	Name   string                 `yaml:"name"`
-	Params map[string]interface{} `yaml:"params"`
+	Name                 string                 `yaml:"name"`
+	Params               map[string]interface{} `yaml:"params"`
+	CompiledContractPath string
+	AbiPath              string
 }
 
 func NewSimpleBenchmark(tps int, userType string) (Benchmark, error) {
@@ -67,7 +71,7 @@ func NewSimpleBenchmark(tps int, userType string) (Benchmark, error) {
 }
 
 func (s *SimpleBenchmark) Run(accounts []blockchain.Account, d time.Duration, secondaries map[string]*network.Secondary, coordinator *core.Coordinator, endpoints []string) error {
-	wk, err := createStubbornUsersFromAccounts(accounts, s.Tps, s.Blockchain, endpoints, s.User.Name, s.User.Params)
+	wk, err := createStubbornUsersFromAccounts(accounts, s.Tps, s.Blockchain, endpoints, s.User)
 	if err != nil {
 		return fmt.Errorf("failed to create users: %w", err)
 	}
@@ -120,16 +124,51 @@ func (s *SimpleBenchmark) Run(accounts []blockchain.Account, d time.Duration, se
 	return nil
 }
 
-func createStubbornUsersFromAccounts(accounts []blockchain.Account, tps int, implementation string, endpoints []string, name string, userParams map[string]interface{}) ([]behavior.User, error) {
-	users := make([]behavior.User, len(accounts))
-	userType, ok := core.Users[name]
-	if !ok {
-		return nil, fmt.Errorf("user %s not implemented", name)
-	}
-
+func createStubbornUsersFromAccounts(accounts []blockchain.Account, tps int, implementation string, endpoints []string, user User) ([]behavior.User, error) {
 	var addresses []string
 	for _, acc := range accounts {
 		addresses = append(addresses, acc.Address)
+	}
+
+	users := make([]behavior.User, len(accounts))
+	userType, ok := core.Users[user.Name]
+	if !ok {
+		return nil, fmt.Errorf("user %s not implemented", user.Name)
+	}
+
+	if user.AbiPath != "" && user.CompiledContractPath != "" {
+		b, ok := blockchain.Blockchains[implementation]
+		if !ok {
+			return nil, fmt.Errorf("implementation %s not found", implementation)
+		}
+
+		bl, err := b.New(blockchain.Config{
+			Id:         "0",
+			Endpoint:   endpoints[0],
+			Addresses:  addresses,
+			PrivateKey: accounts[0].PrivateKey,
+			Address:    accounts[0].Address,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create blockchain client for contract deployment: %w", err)
+		}
+
+		abiBytes, err := os.ReadFile(user.AbiPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read file %s: %w", user.AbiPath, err)
+		}
+
+		compiledBytes, err := os.ReadFile(user.CompiledContractPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read file %s: %w", user.CompiledContractPath, err)
+		}
+
+		contractAddress, err := bl.DeployContract(string(abiBytes), []byte("0x"+string(compiledBytes)))
+		if err != nil {
+			return nil, fmt.Errorf("failed to deploy contract %s: %w", user.CompiledContractPath, err)
+		}
+
+		user.Params["contractAddress"] = contractAddress
 	}
 
 	tpsPerUser := tps / len(accounts)
@@ -144,14 +183,14 @@ func createStubbornUsersFromAccounts(accounts []blockchain.Account, tps int, imp
 			remainder--
 		}
 
-		userParams["tps"] = userTps
+		user.Params["tps"] = userTps
 		users[i], err = userType.New(implementation, blockchain.Config{
 			Id:         strconv.Itoa(i),
 			Endpoint:   endpoints[i%len(endpoints)],
 			Addresses:  addresses,
 			PrivateKey: acc.PrivateKey,
 			Address:    acc.Address,
-		}, userParams)
+		}, user.Params)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create user: %w", err)
 		}
