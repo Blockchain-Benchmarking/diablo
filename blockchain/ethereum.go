@@ -169,7 +169,10 @@ func (e *EthereumClient) DeployContract(abiString string, bytecode []byte, param
 		return "", fmt.Errorf("failed to deploy contract: %w", err)
 	}
 
-	receipt, err := bind.WaitMined(context.Background(), e.client, tx)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	receipt, err := bind.WaitMined(ctx, e.client, tx)
 	if err != nil {
 		return "", fmt.Errorf("failed to wait for transaction to be mined: %w", err)
 	}
