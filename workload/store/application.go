@@ -50,12 +50,14 @@ func (s *Application) GetItem(key string) (string, error) {
 		return "", fmt.Errorf("failed to get item %s: %w", key, err)
 	}
 
-	value, ok := result.(string)
+	value, ok := result.([32]byte)
 	if !ok {
+		logging.Warnf("item %s is not a byte array", key)
 		return "", fmt.Errorf("failed to get item %s: %w", key, fmt.Errorf("result is not of type string"))
 	}
 
-	logging.Infof("got item %s", value)
+	str := fmt.Sprintf("%x", value)
+	logging.Infof("got item %s", str)
 
-	return value, nil
+	return str, nil
 }
