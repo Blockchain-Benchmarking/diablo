@@ -280,11 +280,15 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 		return nil, fmt.Errorf("call failed: %w", err)
 	}
 
+	logging.Infof("call result: %s", string(result))
+
 	var output interface{}
 	err = parsedABI.UnpackIntoInterface(&output, method, result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode result: %w", err)
 	}
+
+	logging.Infof("returning output %v", output)
 
 	return output, nil
 }
