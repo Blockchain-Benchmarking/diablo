@@ -294,8 +294,7 @@ func (s *StubbornStoreUser) randomTransaction() Info {
 	info := Info{
 		Key:   randomString(4),
 		Value: "",
-		//Type:  rand.Intn(2),
-		Type: Read,
+		Type:  rand.Intn(2),
 	}
 
 	if info.Type == Write {
