@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"context"
+	"diablo/core/logging"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum"
@@ -275,6 +276,7 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 
 	result, err := e.client.CallContract(context.Background(), msg, nil)
 	if err != nil {
+		logging.Errorf("call failed: %s", err.Error())
 		return nil, fmt.Errorf("call failed: %w", err)
 	}
 

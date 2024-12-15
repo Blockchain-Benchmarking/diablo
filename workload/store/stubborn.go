@@ -243,6 +243,7 @@ reset:
 				transactionsWg.Add(1)
 				go func() {
 					if s.Random {
+						//increment own counter
 						results <- s.executeTransaction(s.randomTransaction())
 					} else {
 						results <- s.executeTransaction(s.Actions[currentTransaction%len(s.Actions)])
@@ -311,6 +312,7 @@ func (s *StubbornStoreUser) executeTransaction(info Info) behavior.StubbornActio
 
 	return s.Stubborn.PerformStubbornAction(func() error {
 		if info.Type == Read {
+			logging.Infof("calling get item on %s", info.Key)
 			_, err := s.App.GetItem(info.Key)
 			return err
 		}
