@@ -8,6 +8,7 @@ import (
 	"diablo/workload/behavior"
 	"diablo/workload/payment"
 	"diablo/workload/store"
+	"encoding/hex"
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"os"
@@ -157,9 +158,14 @@ func createStubbornUsersFromAccounts(accounts []blockchain.Account, tps int, imp
 			return nil, fmt.Errorf("failed to read file %s: %w", user.AbiPath, err)
 		}
 
-		compiledBytes, err := os.ReadFile(user.CompiledContractPath)
+		compiledHex, err := os.ReadFile(user.CompiledContractPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read file %s: %w", user.CompiledContractPath, err)
+		}
+
+		compiledBytes, err := hex.DecodeString(string(compiledHex))
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode file %s: %w", user.CompiledContractPath, err)
 		}
 
 		contractAddress, err := bl.DeployContract(string(abiBytes), compiledBytes, "1.0.0")
