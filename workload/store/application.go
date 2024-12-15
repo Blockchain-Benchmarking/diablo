@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -54,7 +55,10 @@ func (s *Application) GetItem(key string, timeout time.Duration) (string, error)
 		return "", fmt.Errorf("failed to get item %s: %w", key, err)
 	}
 
-	logging.Infof("got item %s", result)
+	trimmedResult := strings.TrimRight(result, "\x00")
+	fmt.Printf("Decoded result: %s\n", trimmedResult)
 
-	return result, nil
+	logging.Infof("got item %s", trimmedResult)
+
+	return trimmedResult, nil
 }
