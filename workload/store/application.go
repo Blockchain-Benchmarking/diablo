@@ -4,7 +4,6 @@ import (
 	"diablo/blockchain"
 	"diablo/core/logging"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
 	"os"
 	"strings"
 	"time"
@@ -42,7 +41,7 @@ func New(implementation string, config blockchain.Config, contractAddress string
 }
 
 func (s *Application) SetItem(key, value string, timeout time.Duration) error {
-	return s.client.SendContractTransaction(s.contractAddress, s.abi, "setItem", timeout, common.HexToHash(key), common.HexToHash(value))
+	return s.client.SendContractTransaction(s.contractAddress, s.abi, "setItem", timeout, key, value)
 }
 
 func (s *Application) GetItem(key string, timeout time.Duration) (string, error) {
@@ -50,7 +49,7 @@ func (s *Application) GetItem(key string, timeout time.Duration) (string, error)
 	copy(keyBytes[:], key)
 
 	var result string
-	err := s.client.CallContract(s.contractAddress, s.abi, "items", timeout, &result, common.HexToHash(key))
+	err := s.client.CallContract(s.contractAddress, s.abi, "items", timeout, &result, key)
 	if err != nil {
 		return "", fmt.Errorf("failed to get item %s: %w", key, err)
 	}
