@@ -3,6 +3,7 @@ package blockchain
 import (
 	"context"
 	"diablo/core/logging"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum"
@@ -274,9 +275,12 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 
 	logging.Debugf("packed data")
 
-	msg := map[string]interface{}{
-		"to":   contractAddress,
-		"data": data,
+	hexData := "0x" + hex.EncodeToString(data)
+
+	toAddress := common.HexToAddress(contractAddress)
+	msg := ethereum.CallMsg{
+		To:   &toAddress,
+		Data: []byte(hexData),
 	}
 
 	logging.Infof("sending call to addresss %s , with packed data %x", contractAddress, data)
