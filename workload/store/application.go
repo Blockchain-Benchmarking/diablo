@@ -41,21 +41,20 @@ func New(implementation string, config blockchain.Config, contractAddress string
 }
 
 func (s *Application) SetItem(key, value string, timeout time.Duration) error {
-	return s.client.SendContractTransaction(s.contractAddress, s.abi, "setItem", timeout, common.HexToHash("abc"), common.HexToHash("def"))
+	return s.client.SendContractTransaction(s.contractAddress, s.abi, "setItem", timeout, common.HexToHash(key), common.HexToHash(value))
 }
 
-func (s *Application) GetItem(key string) (string, error) {
-	logging.Infof("in getitem")
+func (s *Application) GetItem(key string, timeout time.Duration) (string, error) {
 	var keyBytes [32]byte
-	copy(keyBytes[:], "abc")
+	copy(keyBytes[:], key)
 
-	result, err := s.client.CallContract(s.contractAddress, s.abi, "items", keyBytes)
+	var result string
+	err := s.client.CallContract(s.contractAddress, s.abi, "items", timeout, &result, common.HexToHash(key))
 	if err != nil {
 		return "", fmt.Errorf("failed to get item %s: %w", key, err)
 	}
 
-	str := result.(string)
-	logging.Infof("got item %s", str)
+	logging.Infof("got item %s", result)
 
-	return str, nil
+	return result, nil
 }

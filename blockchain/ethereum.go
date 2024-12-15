@@ -2,7 +2,6 @@ package blockchain
 
 import (
 	"context"
-	"diablo/core/logging"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum"
@@ -132,7 +131,7 @@ func (e *EthereumClient) Balance() (float64, error) {
 	return res, nil
 }
 
-func (e *EthereumClient) DeployContract(abiString string, bytecode []byte, params ...interface{}) (string, error) {
+func (e *EthereumClient) DeployContract(abiString string, bytecode []byte, timeout time.Duration, params ...interface{}) (string, error) {
 	privateKey, err := crypto.HexToECDSA(e.PrivateKey)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse private key: %w", err)
@@ -166,7 +165,7 @@ func (e *EthereumClient) DeployContract(abiString string, bytecode []byte, param
 		return "", fmt.Errorf("failed to deploy contract: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	receipt, err := bind.WaitMined(ctx, e.client, tx)
@@ -258,22 +257,16 @@ func (e *EthereumClient) SendContractTransaction(contractAddress string, abiStri
 	return nil
 }
 
-func (e *EthereumClient) CallContract(contractAddress string, abiString string, method string, params ...interface{}) (interface{}, error) {
-	logging.Debugf("in call contract")
+func (e *EthereumClient) CallContract(contractAddress string, abiString string, method string, timeout time.Duration, result interface{}, params ...interface{}) error {
 	parsedABI, err := abi.JSON(strings.NewReader(abiString))
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse ABI: %w", err)
+		return fmt.Errorf("failed to parse ABI: %w", err)
 	}
-
-	logging.Debugf("parsed abi %s, packing params %d", abiString, len(params))
 
 	data, err := parsedABI.Pack(method, params...)
 	if err != nil {
-		logging.Errorf("failed to pack parameters: %s", err.Error())
-		return nil, fmt.Errorf("failed to pack parameters: %w", err)
+		return fmt.Errorf("failed to pack parameters: %w", err)
 	}
-
-	logging.Debugf("packed data")
 
 	toAddress := common.HexToAddress(contractAddress)
 	msg := ethereum.CallMsg{
@@ -281,49 +274,15 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 		Data: data,
 	}
 
-	logging.Infof("sending call to addresss %s , with packed data %x", contractAddress, data)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	var output string
-	err = e.client.Client().CallContext(ctx, &output, "eth_call", toCallArg(msg), "latest")
+	err = e.client.Client().CallContext(ctx, &result, "eth_call", toCallArg(msg), "latest")
 	if err != nil {
-		logging.Errorf("failed to call eth_call: %s", err.Error())
-		return nil, fmt.Errorf("raw RPC call failed: %w", err)
+		return fmt.Errorf("eth_call failed: %w", err)
 	}
 
-	/**
-	toAddress := common.HexToAddress(contractAddress)
-	msg := ethereum.CallMsg{
-		To:   &toAddress,
-		Data: data,
-	}
-
-	logging.Infof("sending call to addresss %s , with packed data %x", contractAddress, data)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	e.client.Client().CallContext()
-
-	result, err := e.client.CallContract(ctx, msg, nil)
-	if err != nil {
-		logging.Errorf("call failed: %s, result: %s", err.Error(), string(result))
-		return nil, fmt.Errorf("call failed: %w", err)
-	}
-
-	logging.Infof("call result: %s", string(result))
-
-	var output interface{}
-	err = parsedABI.UnpackIntoInterface(&output, method, result)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode result: %w", err)
-	}*/
-
-	logging.Infof("returning output %s", output)
-
-	return output, nil
+	return nil
 }
 
 func (e *EthereumClient) waitForReceipt(txHash common.Hash, timeout time.Duration) (*types.Receipt, error) {
@@ -353,7 +312,8 @@ func (e *EthereumClient) waitForReceipt(txHash common.Hash, timeout time.Duratio
 	return receipt, nil
 }
 
-// coped from ethclient.go for testing
+// taken from the ethclient packet with "data" field instead of "input"
+// TODO add link to issue
 func toCallArg(msg ethereum.CallMsg) interface{} {
 	arg := map[string]interface{}{
 		"from": msg.From,

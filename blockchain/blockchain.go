@@ -17,9 +17,9 @@ type Blockchain interface {
 	Transfer(amount float64, to string, timeout time.Duration) error
 	Balance() (float64, error)
 
-	DeployContract(abi string, bytecode []byte, params ...interface{}) (string, error)
+	DeployContract(abi string, bytecode []byte, timeout time.Duration, params ...interface{}) (string, error)
 	SendContractTransaction(contractAddress string, abi string, method string, timeout time.Duration, params ...interface{}) error
-	CallContract(contractAddress string, abi string, method string, params ...interface{}) (interface{}, error)
+	CallContract(contractAddress string, abi string, method string, timeout time.Duration, result interface{}, params ...interface{}) error
 }
 
 type Account struct {
