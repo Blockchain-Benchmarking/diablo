@@ -274,7 +274,12 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 		Data: data,
 	}
 
-	result, err := e.client.CallContract(context.Background(), msg, nil)
+	logging.Infof("sending call")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	result, err := e.client.CallContract(ctx, msg, nil)
 	if err != nil {
 		logging.Errorf("call failed: %s", err.Error())
 		return nil, fmt.Errorf("call failed: %w", err)
