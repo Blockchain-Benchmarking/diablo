@@ -258,15 +258,20 @@ func (e *EthereumClient) SendContractTransaction(contractAddress string, abiStri
 }
 
 func (e *EthereumClient) CallContract(contractAddress string, abiString string, method string, params ...interface{}) (interface{}, error) {
+	logging.Debugf("in call contract")
 	parsedABI, err := abi.JSON(strings.NewReader(abiString))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse ABI: %w", err)
 	}
 
+	logging.Debugf("parsed abi")
+
 	data, err := parsedABI.Pack(method, params...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to pack parameters: %w", err)
 	}
+
+	logging.Debugf("packed data")
 
 	toAddress := common.HexToAddress(contractAddress)
 	msg := ethereum.CallMsg{

@@ -45,6 +45,7 @@ func (s *Application) SetItem(key, value string, timeout time.Duration) error {
 }
 
 func (s *Application) GetItem(key string) (string, error) {
+	logging.Infof("in getitem")
 	result, err := s.client.CallContract(s.contractAddress, s.abi, "items", common.LeftPadBytes([]byte(key), 32))
 	if err != nil {
 		return "", fmt.Errorf("failed to get item %s: %w", key, err)
