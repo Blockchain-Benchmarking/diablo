@@ -54,13 +54,13 @@ func (s *Application) GetItem(key string, timeout time.Duration) (string, error)
 	var keyBytes [32]byte
 	copy(keyBytes[:], key)
 
-	var result string
+	var result [32]byte
 	err := s.client.CallContract(s.contractAddress, s.abi, "items", timeout, &result, keyBytes)
 	if err != nil {
 		return "", fmt.Errorf("failed to get item %s: %w", key, err)
 	}
 
-	trimmedResult := strings.TrimRight(result, "\x00")
+	trimmedResult := strings.TrimRight(string(result[:]), "\x00")
 	fmt.Printf("Decoded result: %s\n", trimmedResult)
 
 	logging.Infof("got item %s", trimmedResult)
