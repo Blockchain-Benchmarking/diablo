@@ -162,7 +162,7 @@ func createStubbornUsersFromAccounts(accounts []blockchain.Account, tps int, imp
 			return nil, fmt.Errorf("failed to read file %s: %w", user.CompiledContractPath, err)
 		}
 
-		contractAddress, err := bl.DeployContract(string(abiBytes), []byte("0x"+string(compiledBytes)), "1.0.0")
+		contractAddress, err := bl.DeployContract(string(abiBytes), compiledBytes, "1.0.0")
 		if err != nil {
 			return nil, fmt.Errorf("failed to deploy contract %s: %w", user.CompiledContractPath, err)
 		}
