@@ -3,13 +3,13 @@ package blockchain
 import (
 	"context"
 	"diablo/core/logging"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -275,12 +275,10 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 
 	logging.Debugf("packed data")
 
-	hexData := "0x" + hex.EncodeToString(data)
-
 	toAddress := common.HexToAddress(contractAddress)
 	msg := ethereum.CallMsg{
 		To:   &toAddress,
-		Data: []byte(hexData),
+		Data: data,
 	}
 
 	logging.Infof("sending call to addresss %s , with packed data %x", contractAddress, data)
@@ -289,8 +287,9 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 	defer cancel()
 
 	output := map[string]interface{}{}
-	err = e.client.Client().CallContext(ctx, &output, "eth_call", msg, "latest")
+	err = e.client.Client().CallContext(ctx, &output, "eth_call", toCallArg(msg), "latest")
 	if err != nil {
+		logging.Errorf("failed to call eth_call: %s", err.Error())
 		return nil, fmt.Errorf("raw RPC call failed: %w", err)
 	}
 
@@ -352,4 +351,40 @@ func (e *EthereumClient) waitForReceipt(txHash common.Hash, timeout time.Duratio
 	}
 
 	return receipt, nil
+}
+
+// coped from ethclient.go for testing
+func toCallArg(msg ethereum.CallMsg) interface{} {
+	arg := map[string]interface{}{
+		"from": msg.From,
+		"to":   msg.To,
+	}
+	if len(msg.Data) > 0 {
+		arg["input"] = hexutil.Bytes(msg.Data)
+	}
+	if msg.Value != nil {
+		arg["value"] = (*hexutil.Big)(msg.Value)
+	}
+	if msg.Gas != 0 {
+		arg["gas"] = hexutil.Uint64(msg.Gas)
+	}
+	if msg.GasPrice != nil {
+		arg["gasPrice"] = (*hexutil.Big)(msg.GasPrice)
+	}
+	if msg.GasFeeCap != nil {
+		arg["maxFeePerGas"] = (*hexutil.Big)(msg.GasFeeCap)
+	}
+	if msg.GasTipCap != nil {
+		arg["maxPriorityFeePerGas"] = (*hexutil.Big)(msg.GasTipCap)
+	}
+	if msg.AccessList != nil {
+		arg["accessList"] = msg.AccessList
+	}
+	if msg.BlobGasFeeCap != nil {
+		arg["maxFeePerBlobGas"] = (*hexutil.Big)(msg.BlobGasFeeCap)
+	}
+	if msg.BlobHashes != nil {
+		arg["blobVersionedHashes"] = msg.BlobHashes
+	}
+	return arg
 }
