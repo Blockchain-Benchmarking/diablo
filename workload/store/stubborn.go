@@ -316,7 +316,7 @@ func (s *StubbornStoreUser) executeTransaction(info Info) behavior.StubbornActio
 	return s.Stubborn.PerformStubbornAction(func() error {
 		if info.Type == Read {
 			logging.Infof("calling get item on %s", info.Key)
-			_, err := s.App.GetItem(info.Key)
+			_, err := s.App.GetItem(info.Key, s.Timeout)
 			return err
 		}
 
