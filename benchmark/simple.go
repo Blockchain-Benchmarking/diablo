@@ -40,7 +40,7 @@ var userTypes = map[string]User{
 			"actions":      []store.Info{},
 			"duration":     0,
 		},
-		CompiledContractPath: "workload/store/contract/StoreCompiled",
+		CompiledContractPath: "workload/store/contract/Store.bin",
 		AbiPath:              "workload/store/contract/Store.abi",
 	},
 }
