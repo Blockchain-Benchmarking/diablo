@@ -321,14 +321,18 @@ func (s *StubbornStoreUser) executeTransaction(info Info) behavior.StubbornActio
 
 		logging.Infof("calling set item on %s to %s", info.Key, info.Value)
 
-		err := s.App.SetItem(info.Key, info.Value, s.Timeout)
+		k := info.Key
+		if k != "" {
+			k = s.ID()
+		}
+		err := s.App.SetItem(k, info.Value, s.Timeout)
 		if err != nil {
 			return err
 		}
 
-		logging.Infof("after set, calling get item on %s", info.Key)
+		logging.Infof("after set, calling get item on %s", k)
 
-		res, err := s.App.GetItem(info.Key, s.Timeout)
+		res, err := s.App.GetItem(k, s.Timeout)
 		if err != nil {
 			return err
 		}

@@ -31,7 +31,7 @@ var userTypes = map[string]User{
 			"duration":     0,
 		},
 	},
-	"stubbornStoreUser": {
+	"stubbornRandomStoreUser": {
 		Name: "stubbornStoreUser",
 		Params: map[string]interface{}{
 			"timeout":      "15s",
@@ -42,6 +42,22 @@ var userTypes = map[string]User{
 		},
 		CompiledContractPath: "workload/store/contract/Store.bin",
 		AbiPath:              "workload/store/contract/Store.abi",
+	},
+	"stubbornStoreUser": {
+		Name: "stubbornStoreUser",
+		Params: map[string]interface{}{
+			"timeout":      "15s",
+			"max_attempts": 1,
+			"random":       false,
+			"actions": []store.Info{
+				{
+					Time:  time.Now().Add(5 * time.Second).Unix(),
+					Value: "abc",
+					Type:  store.Write,
+				},
+			},
+			"duration": 0,
+		},
 	},
 }
 
