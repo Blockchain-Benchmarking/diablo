@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const storeAbiPath = "contract/Store.abi  "
+const storeAbiPath = "workload/store/contract/Store.abi"
 
 type Application struct {
 	client          blockchain.Blockchain
