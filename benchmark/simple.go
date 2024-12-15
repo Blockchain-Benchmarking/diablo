@@ -116,7 +116,7 @@ func (s *SimpleBenchmark) Run(accounts []blockchain.Account, d time.Duration, se
 
 	time.Sleep(d + 10*time.Second)
 
-	res, _ := coordinator.CollectResultsWithInterval(startTime, startTime.Add(d))
+	res, _ := coordinator.CollectResultsWithInterval(startTime, startTime.Add(d).Add(5*time.Second))
 	latency := behavior.AverageLatency(res)
 	throughput := behavior.Throughput(res, d)
 	logging.Infof("Average Latency: %s, Throughput: %d/s", latency.String(), throughput)
