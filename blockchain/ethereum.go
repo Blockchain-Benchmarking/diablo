@@ -282,9 +282,17 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 
 	logging.Infof("call context")
 
-	err = e.client.Client().CallContext(ctx, &result, "eth_call", toCallArg(msg), "latest")
+	var rawResult hexutil.Bytes
+	err = e.client.Client().CallContext(ctx, &rawResult, "eth_call", toCallArg(msg), "latest")
 	if err != nil {
 		return fmt.Errorf("eth_call failed: %w", err)
+	}
+
+	logging.Infof("raw res: %v", rawResult)
+
+	err = parsedABI.UnpackIntoInterface(result, method, rawResult)
+	if err != nil {
+		return fmt.Errorf("failed to unpack result: %w", err)
 	}
 
 	logging.Infof("done context")
