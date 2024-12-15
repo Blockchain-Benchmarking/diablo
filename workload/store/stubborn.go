@@ -207,7 +207,9 @@ reset:
 			transactionsWg.Wait()
 			return
 		case <-tickerChannel(ticker):
+			logging.Infof("ticker, waiting for transactions")
 			transactionsWg.Wait()
+			logging.Infof("all transactions done")
 			for {
 				select {
 				case <-stop:
