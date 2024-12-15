@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"context"
+	"diablo/core/logging"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum"
@@ -263,6 +264,8 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 		return fmt.Errorf("failed to parse ABI: %w", err)
 	}
 
+	logging.Infof("packing")
+
 	data, err := parsedABI.Pack(method, params...)
 	if err != nil {
 		return fmt.Errorf("failed to pack parameters: %w", err)
@@ -276,6 +279,8 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+
+	logging.Infof("call context")
 
 	err = e.client.Client().CallContext(ctx, &result, "eth_call", toCallArg(msg), "latest")
 	if err != nil {
