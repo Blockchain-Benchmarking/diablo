@@ -58,6 +58,8 @@ var userTypes = map[string]User{
 			},
 			"duration": 0,
 		},
+		CompiledContractPath: "workload/store/contract/Store.bin",
+		AbiPath:              "workload/store/contract/Store.abi",
 	},
 }
 
