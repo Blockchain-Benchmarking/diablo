@@ -5,7 +5,6 @@ import (
 	"diablo/core/logging"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -47,6 +46,8 @@ func (s *Application) SetItem(key, value string, timeout time.Duration) error {
 	var valueBytes [32]byte
 	copy(valueBytes[:], value)
 
+	logging.Infof("calling set with keybytes: %s, valuebytes: %s", string(keyBytes[:]), string(valueBytes[:]))
+
 	return s.client.SendContractTransaction(s.contractAddress, s.abi, "setItem", timeout, keyBytes, valueBytes)
 }
 
@@ -55,17 +56,14 @@ func (s *Application) GetItem(key string, timeout time.Duration) (string, error)
 	copy(keyBytes[:], key)
 
 	var result [32]byte
-	logging.Infof("calling items")
+	logging.Infof("calling items on keybytes: %s", string(keyBytes[:]))
 	err := s.client.CallContract(s.contractAddress, s.abi, "items", timeout, &result, keyBytes)
 	if err != nil {
 		return "", fmt.Errorf("failed to get item %s: %w", key, err)
 	}
 	logging.Infof("done with callcontract")
 
-	trimmedResult := strings.TrimRight(string(result[:]), "\x00")
-	fmt.Printf("Decoded result: %s\n", trimmedResult)
+	logging.Infof("got item %s", string(result[:]))
 
-	logging.Infof("got item %s", trimmedResult)
-
-	return trimmedResult, nil
+	return string(result[:]), nil
 }
