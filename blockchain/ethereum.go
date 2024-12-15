@@ -173,7 +173,7 @@ func (e *EthereumClient) DeployContract(abiString string, bytecode []byte, param
 	}
 
 	if receipt.Status != 1 {
-		return "", fmt.Errorf("contract deployment transaction failed")
+		return "", fmt.Errorf("contract deployment transaction failed, receipt status is %d", receipt.Status)
 	}
 
 	return address.Hex(), nil
