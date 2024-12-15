@@ -325,7 +325,8 @@ func (s *StubbornStoreUser) executeTransaction(info Info) behavior.StubbornActio
 
 		k := info.Key
 		if k == "" {
-			k = s.ID()
+			idInt, _ := strconv.Atoi(s.ID())
+			k = strconv.Itoa(idInt + 1)
 		}
 
 		logging.Infof("calling set item on %s to %s", k, info.Value)
