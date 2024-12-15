@@ -292,13 +292,13 @@ func (s *StubbornStoreUser) Restart(info behavior.RestartInfo) error {
 
 func (s *StubbornStoreUser) randomTransaction() Info {
 	info := Info{
-		Key:   randomString(4),
+		Key:   s.ID(),
 		Value: "",
 		Type:  rand.Intn(2),
 	}
 
 	if info.Type == Write {
-		info.Value = randomString(4)
+		info.Value = randomString(2)
 	}
 
 	return info
