@@ -264,7 +264,7 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 		return nil, fmt.Errorf("failed to parse ABI: %w", err)
 	}
 
-	logging.Debugf("parsed abi")
+	logging.Debugf("parsed abi, packing params %d", len(params))
 
 	data, err := parsedABI.Pack(method, params...)
 	if err != nil {
