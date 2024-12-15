@@ -264,7 +264,7 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 		return nil, fmt.Errorf("failed to parse ABI: %w", err)
 	}
 
-	logging.Debugf("parsed abi, packing params %d", len(params))
+	logging.Debugf("parsed abi %s, packing params %d", abiString, len(params))
 
 	data, err := parsedABI.Pack(method, params...)
 	if err != nil {
@@ -280,7 +280,7 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 		Data: data,
 	}
 
-	logging.Infof("sending call")
+	logging.Infof("sending call to addresss %s , with packed data %x", contractAddress, data)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
