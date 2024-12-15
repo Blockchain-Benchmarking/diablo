@@ -54,7 +54,7 @@ func (s *Application) GetItem(key string, timeout time.Duration) (string, error)
 	var keyBytes [32]byte
 	copy(keyBytes[:], key)
 
-	var result [32]byte
+	var result string
 	logging.Infof("calling items")
 	err := s.client.CallContract(s.contractAddress, s.abi, "items", timeout, &result, keyBytes)
 	if err != nil {

@@ -287,6 +287,8 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 		return fmt.Errorf("eth_call failed: %w", err)
 	}
 
+	logging.Infof("done context")
+
 	return nil
 }
 
