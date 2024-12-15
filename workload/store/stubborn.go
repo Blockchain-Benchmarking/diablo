@@ -322,7 +322,7 @@ func (s *StubbornStoreUser) executeTransaction(info Info) behavior.StubbornActio
 		logging.Infof("calling set item on %s to %s", info.Key, info.Value)
 
 		k := info.Key
-		if k != "" {
+		if k == "" {
 			k = s.ID()
 		}
 		err := s.App.SetItem(k, info.Value, s.Timeout)
