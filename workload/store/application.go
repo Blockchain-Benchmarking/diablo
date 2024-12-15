@@ -47,7 +47,7 @@ func (s *Application) SetItem(key, value string, timeout time.Duration) error {
 	var valueBytes [32]byte
 	copy(valueBytes[:], value)
 
-	return s.client.SendContractTransaction(s.contractAddress, s.abi, "setItem", timeout, keyBytes, valueBytes)
+	return s.client.SendContractTransaction(s.contractAddress, s.abi, "setItem", timeout, key, value)
 }
 
 func (s *Application) GetItem(key string, timeout time.Duration) (string, error) {
@@ -56,7 +56,7 @@ func (s *Application) GetItem(key string, timeout time.Duration) (string, error)
 
 	var result string
 	logging.Infof("calling items")
-	err := s.client.CallContract(s.contractAddress, s.abi, "items", timeout, &result, keyBytes)
+	err := s.client.CallContract(s.contractAddress, s.abi, "items", timeout, &result, key)
 	if err != nil {
 		return "", fmt.Errorf("failed to get item %s: %w", key, err)
 	}
