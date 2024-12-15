@@ -311,6 +311,7 @@ func (e *EthereumClient) waitForReceipt(txHash common.Hash, timeout time.Duratio
 
 		receipt, err = e.client.TransactionReceipt(context.Background(), txHash)
 		if err == nil {
+			logging.Infof("success")
 			break
 		}
 
