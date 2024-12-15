@@ -294,8 +294,7 @@ func (s *StubbornStoreUser) randomTransaction() Info {
 	info := Info{
 		Key:   s.ID(),
 		Value: "",
-		//Type:  rand.Intn(2),
-		Type: Write,
+		Type:  rand.Intn(2),
 	}
 
 	if info.Type == Write {
@@ -320,12 +319,16 @@ func (s *StubbornStoreUser) executeTransaction(info Info) behavior.StubbornActio
 			return err
 		}
 
-		err := s.App.SetItem(s.ID(), info.Value, s.Timeout)
+		logging.Infof("calling set item on %s to %s", info.Key, info.Value)
+
+		err := s.App.SetItem(info.Key, info.Value, s.Timeout)
 		if err != nil {
 			return err
 		}
 
-		res, err := s.App.GetItem(s.ID(), s.Timeout)
+		logging.Infof("after set, calling get item on %s", info.Key)
+
+		res, err := s.App.GetItem(info.Key, s.Timeout)
 		if err != nil {
 			return err
 		}
