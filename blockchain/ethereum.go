@@ -286,7 +286,7 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	output := map[string]interface{}{}
+	var output string
 	err = e.client.Client().CallContext(ctx, &output, "eth_call", toCallArg(msg), "latest")
 	if err != nil {
 		logging.Errorf("failed to call eth_call: %s", err.Error())
@@ -321,7 +321,7 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 		return nil, fmt.Errorf("failed to decode result: %w", err)
 	}*/
 
-	logging.Infof("returning output %v", output)
+	logging.Infof("returning output %s", output)
 
 	return output, nil
 }
