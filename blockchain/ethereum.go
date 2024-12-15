@@ -268,7 +268,7 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 
 	data, err := parsedABI.Pack(method, params...)
 	if err != nil {
-		logging.Errorf("failed to pack parameters: %w", err)
+		logging.Errorf("failed to pack parameters: %s", err.Error())
 		return nil, fmt.Errorf("failed to pack parameters: %w", err)
 	}
 
