@@ -177,6 +177,7 @@ reset:
 
 	//Scheduled run
 	if len(s.Actions) != 0 {
+		logging.Infof("running schedule %s", s.ID())
 		s.runSchedule(results)
 		return
 	}
