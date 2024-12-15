@@ -49,7 +49,7 @@ func (s *Application) SetItem(key, value string, timeout time.Duration) error {
 
 	logging.Infof("calling set with keybytes: %s, valuebytes: %s", string(keyBytes[:]), string(valueBytes[:]))
 
-	return s.client.SendContractTransaction(s.contractAddress, s.abi, "setItem", timeout, common.LeftPadBytes([]byte(key), 32), common.LeftPadBytes([]byte(value), 32))
+	return s.client.SendContractTransaction(s.contractAddress, s.abi, "setItem", timeout, common.RightPadBytes([]byte(key), 32), common.RightPadBytes([]byte(value), 32))
 }
 
 func (s *Application) GetItem(key string, timeout time.Duration) (string, error) {
@@ -58,7 +58,7 @@ func (s *Application) GetItem(key string, timeout time.Duration) (string, error)
 
 	var result [32]byte
 	logging.Infof("calling items on keybytes: %s", string(keyBytes[:]))
-	err := s.client.CallContract(s.contractAddress, s.abi, "items", timeout, &result, common.LeftPadBytes([]byte(key), 32))
+	err := s.client.CallContract(s.contractAddress, s.abi, "items", timeout, &result, common.RightPadBytes([]byte(key), 32))
 	if err != nil {
 		return "", fmt.Errorf("failed to get item %s: %w", key, err)
 	}
