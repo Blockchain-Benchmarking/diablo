@@ -274,6 +274,23 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 
 	logging.Debugf("packed data")
 
+	msg := map[string]interface{}{
+		"to":   contractAddress,
+		"data": data,
+	}
+
+	logging.Infof("sending call to addresss %s , with packed data %x", contractAddress, data)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	output := map[string]interface{}{}
+	err = e.client.Client().CallContext(ctx, &output, "eth_call", msg, "latest")
+	if err != nil {
+		return nil, fmt.Errorf("raw RPC call failed: %w", err)
+	}
+
+	/**
 	toAddress := common.HexToAddress(contractAddress)
 	msg := ethereum.CallMsg{
 		To:   &toAddress,
@@ -284,6 +301,8 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+
+	e.client.Client().CallContext()
 
 	result, err := e.client.CallContract(ctx, msg, nil)
 	if err != nil {
@@ -297,7 +316,7 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 	err = parsedABI.UnpackIntoInterface(&output, method, result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode result: %w", err)
-	}
+	}*/
 
 	logging.Infof("returning output %v", output)
 
