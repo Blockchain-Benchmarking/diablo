@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -292,8 +293,10 @@ func (s *StubbornStoreUser) Restart(info behavior.RestartInfo) error {
 }
 
 func (s *StubbornStoreUser) randomTransaction() Info {
+	idInt, _ := strconv.Atoi(s.ID())
+
 	info := Info{
-		Key:   s.ID(),
+		Key:   strconv.Itoa(idInt + 1),
 		Value: "",
 		Type:  rand.Intn(2),
 	}
