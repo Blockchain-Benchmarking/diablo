@@ -287,7 +287,7 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 
 	result, err := e.client.CallContract(ctx, msg, nil)
 	if err != nil {
-		logging.Errorf("call failed: %s", err.Error())
+		logging.Errorf("call failed: %s, result: %s", err.Error(), string(result))
 		return nil, fmt.Errorf("call failed: %w", err)
 	}
 
