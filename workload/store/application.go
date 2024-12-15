@@ -46,21 +46,6 @@ func (s *Application) SetItem(key, value string, timeout time.Duration) error {
 
 func (s *Application) GetItem(key string) (string, error) {
 	logging.Infof("in getitem")
-	result, err := s.client.CallContract(s.contractAddress, s.abi, "version")
-	if err != nil {
-		logging.Infof("Error calling version: %s", err.Error())
-		return "", err
-	}
-
-	str, ok := result.(string)
-	if !ok {
-		logging.Errorf("failed to get string of result %v", result)
-		return "", fmt.Errorf("failed to get string of result %v", result)
-	}
-
-	logging.Infof("Version: %s", str)
-
-	/**
 	var keyBytes [32]byte
 	copy(keyBytes[:], "abc")
 
@@ -76,7 +61,7 @@ func (s *Application) GetItem(key string) (string, error) {
 	}
 
 	str := fmt.Sprintf("%x", value)
-	logging.Infof("got item %s", str)*/
+	logging.Infof("got item %s", str)
 
 	return str, nil
 }
