@@ -50,7 +50,7 @@ func (s *Application) GetItem(key string) (string, error) {
 	var keyBytes [32]byte
 	copy(keyBytes[:], "abc")
 
-	result, err := s.client.CallContract(s.contractAddress, s.abi, "items", keyBytes)
+	result, err := s.client.CallContract(s.contractAddress, s.abi, "t", keyBytes)
 	if err != nil {
 		return "", fmt.Errorf("failed to get item %s: %w", key, err)
 	}
