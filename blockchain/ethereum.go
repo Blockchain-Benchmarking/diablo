@@ -197,7 +197,7 @@ func (e *EthereumClient) SendContractTransaction(contractAddress string, abiStri
 		return fmt.Errorf("failed to get account balance: %w", err)
 	}
 
-	gasLimit := uint64(30000)
+	gasLimit := uint64(100000)
 	gasPrice, err := e.client.SuggestGasPrice(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to get gas price: %w", err)
