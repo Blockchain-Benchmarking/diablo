@@ -275,7 +275,7 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 	msg := ethereum.CallMsg{
 		To:   &toAddress,
 		Data: data,
-		Gas:  21204,
+		Gas:  100000,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
