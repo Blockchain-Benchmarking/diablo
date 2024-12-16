@@ -205,6 +205,8 @@ func (e *EthereumClient) SendContractTransaction(contractAddress string, abiStri
 
 	gasCost := new(big.Int).Mul(gasPrice, big.NewInt(int64(gasLimit)))
 
+	logging.Infof("gas limit %d, gas price %d, gas cost %d", gasLimit, gasPrice, gasCost)
+
 	if balance.Cmp(gasCost) < 0 {
 		return fmt.Errorf("insufficient funds: balance=%s, required=%s", balance.String(), gasCost.String())
 	}
@@ -311,7 +313,7 @@ func (e *EthereumClient) waitForReceipt(txHash common.Hash, timeout time.Duratio
 
 		receipt, err = e.client.TransactionReceipt(context.Background(), txHash)
 		if err == nil {
-			logging.Infof("success")
+			logging.Infof("success, gas used: %d", receipt.GasUsed)
 			break
 		}
 
