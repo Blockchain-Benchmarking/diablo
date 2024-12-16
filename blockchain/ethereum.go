@@ -282,6 +282,16 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 
 	logging.Infof("call context")
 
+	//gas estimate
+	g, err := e.client.EstimateGas(ctx, msg)
+	if err != nil {
+		return fmt.Errorf("failed to estimate gas: %w", err)
+	}
+
+	logging.Infof("received gas estimation %d", g)
+
+	msg.Gas = g
+
 	var rawResult hexutil.Bytes
 	err = e.client.Client().CallContext(ctx, &rawResult, "eth_call", toCallArg(msg), "latest")
 	if err != nil {
