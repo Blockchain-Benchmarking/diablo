@@ -114,7 +114,7 @@ func init() {
 	primaryCmd.Flags().StringArrayVarP(&endpoints, "endpoints", "e", []string{}, "Set blockchain endpoints.")
 	err = primaryCmd.MarkFlagRequired("endpoints")
 
-	primaryCmd.PersistentFlags().StringVar(&accountsFile, "accounts", "", "Set accounts file path.")
+	primaryCmd.Flags().StringVar(&accountsFile, "accounts", "", "Set accounts file path.")
 	err = primaryCmd.MarkFlagRequired("accounts")
 	cobra.CheckErr(err)
 }
