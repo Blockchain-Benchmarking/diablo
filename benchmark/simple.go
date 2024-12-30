@@ -126,16 +126,12 @@ func createStubbornUsersFromAccounts(accounts []blockchain.Account, tps int, imp
 	}
 
 	contractPaths := userType.ContractPaths()
-	if contractPaths == nil {
-		return nil, fmt.Errorf("no contract paths found for user %s", user.Name)
-	}
+	if contractPaths != nil {
+		paths, ok := contractPaths[implementation]
+		if !ok {
+			return nil, fmt.Errorf("blockchain %s not implemented", implementation)
+		}
 
-	paths, ok := contractPaths[implementation]
-	if !ok {
-		return nil, fmt.Errorf("no contract paths found for implementation %s", implementation)
-	}
-
-	if paths.AbiPath != "" && paths.BinaryPath != "" {
 		b, ok := blockchain.Blockchains[implementation]
 		if !ok {
 			return nil, fmt.Errorf("implementation %s not found", implementation)
