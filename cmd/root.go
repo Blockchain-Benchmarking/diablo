@@ -5,7 +5,6 @@ import (
 	"os"
 )
 
-var accountsFile string
 var verbosity int
 
 var rootCmd = &cobra.Command{
@@ -22,10 +21,6 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&accountsFile, "accounts", "", "Set accounts file path.")
-	err := rootCmd.MarkFlagRequired("accounts")
-	cobra.CheckErr(err)
-
 	rootCmd.PersistentFlags().IntVar(&verbosity, "verbose", 4, "Set verbosity to <lvl> (fatal=1,"+
 		"error=2, warning=3, info=4, debug=5, trace=6).")
 
