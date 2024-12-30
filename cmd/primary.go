@@ -115,8 +115,6 @@ func init() {
 	err = primaryCmd.MarkFlagRequired("endpoints")
 
 	primaryCmd.PersistentFlags().StringVar(&accountsFile, "accounts", "", "Set accounts file path.")
-	err = rootCmd.MarkFlagRequired("accounts")
-	cobra.CheckErr(err)
-
+	err = primaryCmd.MarkFlagRequired("accounts")
 	cobra.CheckErr(err)
 }
