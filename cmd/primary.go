@@ -20,6 +20,7 @@ const (
 	defaultBenchmark  = "simple"
 	defaultUser       = "stubbornPaymentUser"
 	defaultBlockchain = "ethereum"
+	defaultTps        = 200
 )
 
 var compress bool
@@ -104,10 +105,7 @@ func init() {
 
 	primaryCmd.Flags().StringVar(&configFile, "config", "", "Set user / blockchain config file.")
 
-	primaryCmd.Flags().IntVarP(&tps, "tps", "t", 0, "Set sending rate in transactions per second.")
-	err = primaryCmd.MarkFlagRequired("tps")
-	cobra.CheckErr(err)
-
+	primaryCmd.Flags().IntVarP(&tps, "tps", "t", defaultTps, "Set sending rate in transactions per second.")
 	primaryCmd.Flags().StringVarP(&userType, "user", "u", defaultUser, "Set user type.")
 	primaryCmd.Flags().StringVar(&blockchain, "blockchain", defaultBlockchain, "Set blockchain.")
 
