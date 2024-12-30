@@ -14,7 +14,6 @@ import (
 
 const STUBBORN_PAYMENT_USER = "stubbornPaymentUser"
 
-// specific transaction or many trnsactions randomly at certain rate
 type StubbornPaymentUser struct {
 	Implementation string
 	Config         blockchain.Config
@@ -22,13 +21,13 @@ type StubbornPaymentUser struct {
 
 	Stubborn *behavior.StubbornBehavior
 
-	Payments []Info //Chronologically sorted list of interactions to complete or list of interactions to iterate through with below indicated tps
+	Payments []Info
 
-	Random bool //set to true if the interactions should be random (payments must be empty)
+	Random bool
 
-	Tps int //0 if interactions should be completed following their schedule
+	Tps int
 
-	Duration time.Duration //0 if the user should run as long as possible
+	Duration time.Duration
 
 	App       *Application
 	restartCh chan behavior.RestartInfo
@@ -38,6 +37,7 @@ type Info struct {
 	Time   int64   `json:"time"`
 	Amount float64 `json:"amount"`
 	To     string  `json:"to"`
+	ID     string  `json:"id"`
 }
 
 func (s *StubbornPaymentUser) New(implementation string, config blockchain.Config, params map[string]interface{}) (behavior.User, error) {
@@ -150,7 +150,6 @@ func tickerChannel(t *time.Ticker) <-chan time.Time {
 	return t.C
 }
 
-// TODO defer wg.done from outside ?
 func (s *StubbornPaymentUser) Run(results chan behavior.Result, stop chan struct{}) {
 	s.restartCh = make(chan behavior.RestartInfo)
 	interval := time.Second
@@ -165,7 +164,6 @@ reset:
 		}
 	}
 
-	//Scheduled run
 	if len(s.Payments) != 0 {
 		s.runSchedule(results)
 		return
@@ -178,7 +176,6 @@ reset:
 
 	currentTransaction := 0
 	transactionsWg := &sync.WaitGroup{}
-	//logging.Infof("user %s has tps %d", s.ID(), s.Tps)
 	for i := 0; i < s.Tps; i++ {
 		transactionsWg.Add(1)
 		go func() {
@@ -202,14 +199,12 @@ reset:
 			for {
 				select {
 				case <-stop:
-					logging.Infof("stopping user")
 					return
 				case info := <-s.restartCh:
 					transactionsWg.Wait()
 					s.resetParameters(*info.NewParameters.(*StubbornPaymentUser))
 					waitingTime := time.Until(info.RestartTime)
 					if waitingTime > 0 {
-						//logging.Infof(waitingTime.String() + " until start")
 						time.Sleep(waitingTime)
 					} else {
 						logging.Infof("starting user with %s delay", (-1 * waitingTime).String())
@@ -218,13 +213,10 @@ reset:
 				}
 			}
 		case info := <-s.restartCh:
-			//logging.Infof("waiting for transactions before restart")
 			transactionsWg.Wait()
-			//logging.Infof("transactions done, restarting")
 			s.resetParameters(*info.NewParameters.(*StubbornPaymentUser))
 			waitingTime := time.Until(info.RestartTime)
 			if waitingTime > 0 {
-				//logging.Infof(waitingTime.String() + " until start")
 				time.Sleep(waitingTime)
 			} else {
 				logging.Warnf("starting user with %s delay", (-1 * waitingTime).String())
@@ -277,9 +269,7 @@ func (s *StubbornPaymentUser) Restart(info behavior.RestartInfo) error {
 		return fmt.Errorf("invalid new stubbornPaymentUser")
 	}
 
-	//logging.Debugf("restart signal sending")
 	s.restartCh <- info
-	//logging.Debugf("sent restart signal")
 
 	return nil
 }
@@ -300,11 +290,16 @@ func (s *StubbornPaymentUser) randomTransaction() Info {
 	return Info{
 		Amount: amount,
 		To:     to,
+		ID:     s.ID(),
 	}
 }
 
 func (s *StubbornPaymentUser) executeTransaction(info Info) behavior.StubbornAction {
 	return s.Stubborn.PerformStubbornAction(func() error {
 		return s.App.Pay(info.To, info.Amount, s.Timeout)
-	}, "transfer")
+	}, "transfer", info.ID)
+}
+
+func (s *StubbornPaymentUser) ContractPaths() map[string]behavior.ContractInfo {
+	return nil
 }

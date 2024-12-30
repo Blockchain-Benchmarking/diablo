@@ -40,7 +40,6 @@ func (s *Secondary) Run() error {
 
 	logging.Debugf("wait for primary parameters at address %s", s.PrimaryConn.LocalAddr())
 
-	//read init message from primary connection
 	msg, err := s.PrimaryConn.Read()
 	if err != nil {
 		return fmt.Errorf("cannot read from primary connection: %w", err)
@@ -60,14 +59,10 @@ func (s *Secondary) Run() error {
 
 	logging.Debugf("running generator")
 
-	//create generator
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	go g.Run(wg)
 
-	logging.Infof("sending secondary init message")
-
-	//send init message back to primary
 	secondaryMsg := messaging.SecondaryInit{Tags: s.Tags}
 	err = s.PrimaryConn.Send(&secondaryMsg)
 	if err != nil {

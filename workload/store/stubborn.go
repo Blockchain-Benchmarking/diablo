@@ -26,7 +26,6 @@ type StubbornStoreUser struct {
 
 	ContractAddress string
 
-	//TODO put all these in stubborn behavior ?
 	Actions  []Info
 	Random   bool
 	Tps      int
@@ -43,6 +42,7 @@ type Info struct {
 	Key   string
 	Value string
 	Type  int
+	ID    string
 }
 
 func (s *StubbornStoreUser) New(implementation string, config blockchain.Config, params map[string]interface{}) (behavior.User, error) {
@@ -109,6 +109,15 @@ func (s *StubbornStoreUser) New(implementation string, config blockchain.Config,
 	return u, nil
 }
 
+func (s *StubbornStoreUser) ContractPaths() map[string]behavior.ContractInfo {
+	return map[string]behavior.ContractInfo{
+		"ethereum": {
+			AbiPath:    "workload/store/contract/Store.abi",
+			BinaryPath: "workload/store/contract/Store.bin",
+		},
+	}
+}
+
 func (s *StubbornStoreUser) resetParameters(newParameters StubbornStoreUser) {
 	if s.Implementation != newParameters.Implementation {
 		s.App = nil
@@ -161,22 +170,32 @@ func tickerChannel(t *time.Ticker) <-chan time.Time {
 	return t.C
 }
 
-// TODO defer wg.done from outside ?
 func (s *StubbornStoreUser) Run(results chan behavior.Result, stop chan struct{}) {
 	s.restartCh = make(chan behavior.RestartInfo)
 	interval := time.Second
 
+	contractPaths := s.ContractPaths()
+	if contractPaths == nil {
+		logging.Errorf("contract paths map is empty")
+		return
+	}
+
+	paths, ok := contractPaths[s.Implementation]
+	if !ok {
+		logging.Errorf("contract paths map is empty")
+		return
+	}
+
 reset:
 	if s.App == nil {
 		var err error
-		s.App, err = New(s.Implementation, s.Config, s.ContractAddress)
+		s.App, err = New(s.Implementation, s.Config, s.ContractAddress, paths.AbiPath)
 		if err != nil {
 			logging.Errorf("failed to init user app: %s", err.Error())
 			return
 		}
 	}
 
-	//Scheduled run
 	if len(s.Actions) != 0 {
 		logging.Infof("running schedule %s", s.ID())
 		s.runSchedule(results)
@@ -209,13 +228,10 @@ reset:
 			transactionsWg.Wait()
 			return
 		case <-tickerChannel(ticker):
-			logging.Infof("ticker, waiting for transactions")
 			transactionsWg.Wait()
-			logging.Infof("all transactions done")
 			for {
 				select {
 				case <-stop:
-					logging.Infof("stopping user")
 					return
 				case info := <-s.restartCh:
 					transactionsWg.Wait()
@@ -247,7 +263,6 @@ reset:
 				transactionsWg.Add(1)
 				go func() {
 					if s.Random {
-						//increment own counter
 						results <- s.executeTransaction(s.randomTransaction())
 					} else {
 						results <- s.executeTransaction(s.Actions[currentTransaction%len(s.Actions)])
@@ -299,6 +314,7 @@ func (s *StubbornStoreUser) randomTransaction() Info {
 		Key:   strconv.Itoa(idInt + 1),
 		Value: "",
 		Type:  rand.Intn(2),
+		ID:    s.ID(),
 	}
 
 	if info.Type == Write {
@@ -318,7 +334,6 @@ func (s *StubbornStoreUser) executeTransaction(info Info) behavior.StubbornActio
 
 	return s.Stubborn.PerformStubbornAction(func() error {
 		if info.Type == Read {
-			logging.Infof("calling get item on %s", info.Key)
 			_, err := s.App.GetItem(info.Key, s.Timeout)
 			return err
 		}
@@ -329,24 +344,13 @@ func (s *StubbornStoreUser) executeTransaction(info Info) behavior.StubbornActio
 			k = strconv.Itoa(idInt + 1)
 		}
 
-		logging.Infof("calling set item on %s to %s", k, info.Value)
-
 		err := s.App.SetItem(k, info.Value, s.Timeout)
 		if err != nil {
 			return err
 		}
 
-		logging.Infof("after set, calling get item on %s", k)
-
-		res, err := s.App.GetItem(k, s.Timeout)
-		if err != nil {
-			return err
-		}
-
-		logging.Infof("got item %s after setting it to %s", res, info.Value)
-
 		return nil
-	}, actionType)
+	}, actionType, info.ID)
 }
 
 var letters = []rune("abcdefghijklmnopqrstuvwxyz")

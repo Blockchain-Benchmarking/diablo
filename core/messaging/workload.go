@@ -1,7 +1,8 @@
 package messaging
 
+// Users contains a map associating a user type to a list of marshalled users
 type Users struct {
-	Users map[string][]byte `json:"users"` //userType -> users
+	Users map[string][]byte `json:"users"`
 }
 
 func (Users) Empty() Message {
@@ -12,6 +13,7 @@ func (Users) Type() string {
 	return UsersType
 }
 
+// Results contains a result type and a list of marshalled results
 type Results struct {
 	Name    string `json:"name"`
 	Results []byte `json:"results"`
@@ -24,20 +26,3 @@ func (Results) Empty() Message {
 func (Results) Type() string {
 	return ResultsType
 }
-
-/**
-type Status struct {
-	Timestamp    int64 `json:"timestamp"`
-	CpuUsage     int   `json:"cpu_usage"`
-	MemUsage     int   `json:"mem_usage"`
-	UsersRunning int   `json:"users_running"`
-	//transactions fail
-}
-
-func (Status) Empty() Message {
-	return &Status{}
-}
-
-func (Status) Type() string {
-	return StatusType
-}*/

@@ -24,12 +24,13 @@ type Primary struct {
 
 	Benchmark string
 	//if simple benchmark:
-	Tps       int
-	Endpoints []string
-	User      string
+	Tps        int
+	Endpoints  []string
+	User       string
+	Blockchain string
 }
 
-func NewPrimary(port int, secondary int, benchmark string, configPath string, accountsPath string, duration time.Duration, tps int, user string, endpoints []string) (*Primary, error) {
+func NewPrimary(port int, secondary int, benchmark string, configPath string, accountsPath string, duration time.Duration, tps int, user string, implementation string, endpoints []string) (*Primary, error) {
 	accBytes, err := os.ReadFile(accountsPath)
 	if err != nil {
 		return nil, err
@@ -48,10 +49,11 @@ func NewPrimary(port int, secondary int, benchmark string, configPath string, ac
 		Accounts:     accounts,
 		Duration:     duration,
 
-		Benchmark: benchmark,
-		Tps:       tps,
-		Endpoints: endpoints,
-		User:      user,
+		Benchmark:  benchmark,
+		Tps:        tps,
+		Endpoints:  endpoints,
+		User:       user,
+		Blockchain: implementation,
 	}, nil
 }
 
@@ -74,7 +76,7 @@ func (p *Primary) Run() ([]behavior.Result, error) {
 	var b benchmark.Benchmark
 	switch p.Benchmark {
 	case "simple":
-		b, err = benchmark.NewSimpleBenchmark(p.Tps, p.User)
+		b, err = benchmark.NewSimpleBenchmark(p.Tps, p.User, p.Blockchain)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create benchmark: %s", err)
 		}
@@ -85,6 +87,9 @@ func (p *Primary) Run() ([]behavior.Result, error) {
 				return nil, fmt.Errorf("failed to parse config file: %s", err)
 			}
 		}
+
+	case "adapt":
+		b = &benchmark.CustomAdaptBenchmark{}
 
 	case "custom":
 		b = &benchmark.CustomBenchmark{}

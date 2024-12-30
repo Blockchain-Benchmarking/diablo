@@ -2,13 +2,10 @@ package store
 
 import (
 	"diablo/blockchain"
-	"diablo/core/logging"
 	"fmt"
 	"os"
 	"time"
 )
-
-const storeAbiPath = "workload/store/contract/Store.abi"
 
 type Application struct {
 	client          blockchain.Blockchain
@@ -16,7 +13,7 @@ type Application struct {
 	abi             string
 }
 
-func New(implementation string, config blockchain.Config, contractAddress string) (*Application, error) {
+func New(implementation string, config blockchain.Config, contractAddress string, abiPath string) (*Application, error) {
 	b, ok := blockchain.Blockchains[implementation]
 	if !ok {
 		return nil, fmt.Errorf("blockchain %s not implemented", implementation)
@@ -27,9 +24,9 @@ func New(implementation string, config blockchain.Config, contractAddress string
 		return nil, fmt.Errorf("failed to create %s blockchain client: %w", implementation, err)
 	}
 
-	abi, err := os.ReadFile(storeAbiPath)
+	abi, err := os.ReadFile(abiPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read file %s: %w", storeAbiPath, err)
+		return nil, fmt.Errorf("failed to read file %s: %w", abiPath, err)
 	}
 
 	return &Application{
@@ -46,8 +43,6 @@ func (s *Application) SetItem(key, value string, timeout time.Duration) error {
 	var valueBytes [32]byte
 	copy(valueBytes[:], value)
 
-	logging.Infof("calling set with keybytes: %s, valuebytes: %s", string(keyBytes[:]), string(valueBytes[:]))
-
 	return s.client.SendContractTransaction(s.contractAddress, s.abi, "setItem", timeout, keyBytes, valueBytes)
 }
 
@@ -56,14 +51,10 @@ func (s *Application) GetItem(key string, timeout time.Duration) (string, error)
 	copy(keyBytes[:], key)
 
 	var result [32]byte
-	logging.Infof("calling items on keybytes: %s", string(keyBytes[:]))
 	err := s.client.CallContract(s.contractAddress, s.abi, "items", timeout, &result, keyBytes)
 	if err != nil {
 		return "", fmt.Errorf("failed to get item %s: %w", key, err)
 	}
-	logging.Infof("done with callcontract")
-
-	logging.Infof("got item %s", string(result[:]))
 
 	return string(result[:]), nil
 }

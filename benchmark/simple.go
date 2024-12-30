@@ -16,10 +16,6 @@ import (
 	"time"
 )
 
-const (
-	defaultBlockchain = "ethereum"
-)
-
 var userTypes = map[string]User{
 	"stubbornPaymentUser": {
 		Name: "stubbornPaymentUser",
@@ -40,50 +36,28 @@ var userTypes = map[string]User{
 			"actions":      []store.Info{},
 			"duration":     0,
 		},
-		CompiledContractPath: "workload/store/contract/Store.bin",
-		AbiPath:              "workload/store/contract/Store.abi",
-	},
-	"stubbornStoreUser": {
-		Name: "stubbornStoreUser",
-		Params: map[string]interface{}{
-			"timeout":      "15s",
-			"max_attempts": 1,
-			"random":       false,
-			"actions": []store.Info{
-				{
-					Time:  time.Now().Add(5 * time.Second).Unix(),
-					Value: "abc",
-					Type:  store.Write,
-				},
-			},
-			"duration": 0,
-		},
-		CompiledContractPath: "workload/store/contract/Store.bin",
-		AbiPath:              "workload/store/contract/Store.abi",
 	},
 }
 
 type SimpleBenchmark struct {
 	Blockchain string `yaml:"blockchain"`
 	User       User   `yaml:"user"`
-	Tps        int    // operand
+	Tps        int
 }
 
 type User struct {
-	Name                 string                 `yaml:"name"`
-	Params               map[string]interface{} `yaml:"params"`
-	CompiledContractPath string
-	AbiPath              string
+	Name   string                 `yaml:"name"`
+	Params map[string]interface{} `yaml:"params"`
 }
 
-func NewSimpleBenchmark(tps int, userType string) (Benchmark, error) {
+func NewSimpleBenchmark(tps int, userType string, blockchain string) (Benchmark, error) {
 	def, ok := userTypes[userType]
 	if !ok {
 		return nil, fmt.Errorf("user type %s not defined for simple benchmark", userType)
 	}
 
 	return &SimpleBenchmark{
-		Blockchain: defaultBlockchain,
+		Blockchain: blockchain,
 		User:       def,
 		Tps:        tps,
 	}, nil
@@ -95,7 +69,6 @@ func (s *SimpleBenchmark) Run(accounts []blockchain.Account, d time.Duration, se
 		return fmt.Errorf("failed to create users: %w", err)
 	}
 
-	//same schedule for everyone
 	perSecondary := len(wk) / len(secondaries)
 	remainder := len(wk) % len(secondaries)
 
@@ -108,8 +81,6 @@ func (s *SimpleBenchmark) Run(accounts []blockchain.Account, d time.Duration, se
 		}
 
 		usersChunk := wk[i : i+n]
-		logging.Infof("sending %d users to %s", len(usersChunk), addr)
-
 		usersMap := make(map[string][]behavior.User)
 		for _, u := range usersChunk {
 			if usersMap[u.Name()] == nil {
@@ -127,7 +98,7 @@ func (s *SimpleBenchmark) Run(accounts []blockchain.Account, d time.Duration, se
 	}
 
 	startTime := time.Now().Add(5 * time.Second)
-	err = coordinator.SendStartToAll(startTime) //TODO report delay on secondary side
+	err = coordinator.SendStartToAll(startTime)
 	if err != nil {
 		return err
 	}
@@ -154,7 +125,17 @@ func createStubbornUsersFromAccounts(accounts []blockchain.Account, tps int, imp
 		return nil, fmt.Errorf("user %s not implemented", user.Name)
 	}
 
-	if user.AbiPath != "" && user.CompiledContractPath != "" {
+	contractPaths := userType.ContractPaths()
+	if contractPaths == nil {
+		return nil, fmt.Errorf("no contract paths found for user %s", user.Name)
+	}
+
+	paths, ok := contractPaths[implementation]
+	if !ok {
+		return nil, fmt.Errorf("no contract paths found for implementation %s", implementation)
+	}
+
+	if paths.AbiPath != "" && paths.BinaryPath != "" {
 		b, ok := blockchain.Blockchains[implementation]
 		if !ok {
 			return nil, fmt.Errorf("implementation %s not found", implementation)
@@ -171,24 +152,24 @@ func createStubbornUsersFromAccounts(accounts []blockchain.Account, tps int, imp
 			return nil, fmt.Errorf("failed to create blockchain client for contract deployment: %w", err)
 		}
 
-		abiBytes, err := os.ReadFile(user.AbiPath)
+		abiBytes, err := os.ReadFile(paths.AbiPath)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read file %s: %w", user.AbiPath, err)
+			return nil, fmt.Errorf("failed to read file %s: %w", paths.AbiPath, err)
 		}
 
-		compiledHex, err := os.ReadFile(user.CompiledContractPath)
+		compiledHex, err := os.ReadFile(paths.BinaryPath)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read file %s: %w", user.CompiledContractPath, err)
+			return nil, fmt.Errorf("failed to read file %s: %w", paths.BinaryPath, err)
 		}
 
 		compiledBytes, err := hex.DecodeString(string(compiledHex))
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode file %s: %w", user.CompiledContractPath, err)
+			return nil, fmt.Errorf("failed to decode file %s: %w", paths.BinaryPath, err)
 		}
 
 		contractAddress, err := bl.DeployContract(string(abiBytes), compiledBytes, time.Minute, "1.0.0")
 		if err != nil {
-			return nil, fmt.Errorf("failed to deploy contract %s: %w", user.CompiledContractPath, err)
+			return nil, fmt.Errorf("failed to deploy contract %s: %w", paths.BinaryPath, err)
 		}
 
 		logging.Infof("deployed contract at address: %s", contractAddress)
@@ -230,7 +211,6 @@ func ParseSimpleConfig(b Benchmark, configPath string) error {
 		return fmt.Errorf("read setup file failed: %w", err)
 	}
 
-	//Overwrite
 	conf := &SimpleBenchmark{}
 	err = yaml.Unmarshal(buf, conf)
 	if err != nil {

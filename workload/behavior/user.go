@@ -9,7 +9,10 @@ import (
 type User interface {
 	Empty() User
 	UnmarshalUsers(buf []byte) ([]User, error)
+
+	//EmptyResult should return an empty Result structure
 	EmptyResult() Result
+
 	New(blockchain string, config blockchain.Config, params map[string]interface{}) (User, error)
 
 	Name() string
@@ -17,6 +20,8 @@ type User interface {
 
 	Run(results chan Result, stop chan struct{})
 	Restart(info RestartInfo) error
+
+	ContractPaths() map[string]ContractInfo
 }
 
 type RestartInfo struct {
@@ -24,16 +29,23 @@ type RestartInfo struct {
 	RestartTime   time.Time
 }
 
+type ContractInfo struct {
+	AbiPath    string
+	BinaryPath string
+}
+
 type Result interface {
 	Start() time.Time
 	End() time.Time
 	Success() bool
+	GetID() string
 
 	Type() string
 	Empty() Result
 	UnmarshalResults(buf []byte) ([]Result, error)
 }
 
+// Throughput calculates the throughput over the given duration
 func Throughput(results []Result, duration time.Duration) int {
 	if len(results) == 0 {
 		return 0
@@ -49,6 +61,7 @@ func Throughput(results []Result, duration time.Duration) int {
 	return int(float64(successes) / duration.Seconds())
 }
 
+// AverageLatency calculates the average latency in seconds
 func AverageLatency(results []Result) time.Duration {
 	if results == nil || len(results) == 0 {
 		logging.Warnf("can't calculate average latency for empty results")
@@ -68,6 +81,5 @@ func AverageLatency(results []Result) time.Duration {
 		return 0
 	}
 
-	logging.Infof("total success %d/%d, total latency %s, result is %s", total, len(results), sum.String(), (sum / time.Duration(total)).String())
 	return sum / time.Duration(total)
 }

@@ -20,6 +20,8 @@ import (
 	"time"
 )
 
+const gasLimit = 3000000
+
 type EthereumClient struct {
 	client     *ethclient.Client
 	nonce      uint64
@@ -63,7 +65,6 @@ func (e *EthereumClient) Transfer(amount float64, to string, timeout time.Durati
 		return fmt.Errorf("failed to get account balance: %w", err)
 	}
 
-	gasLimit := uint64(21000)
 	gasPrice, err := e.client.SuggestGasPrice(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to get gas price: %w", err)
@@ -154,7 +155,7 @@ func (e *EthereumClient) DeployContract(abiString string, bytecode []byte, timeo
 	}
 
 	auth.GasPrice = gasPrice
-	auth.GasLimit = uint64(3000000)
+	auth.GasLimit = gasLimit
 
 	parsedABI, err := abi.JSON(strings.NewReader(abiString))
 	if err != nil {
@@ -197,15 +198,12 @@ func (e *EthereumClient) SendContractTransaction(contractAddress string, abiStri
 		return fmt.Errorf("failed to get account balance: %w", err)
 	}
 
-	gasLimit := uint64(100000)
 	gasPrice, err := e.client.SuggestGasPrice(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to get gas price: %w", err)
 	}
 
 	gasCost := new(big.Int).Mul(gasPrice, big.NewInt(int64(gasLimit)))
-
-	logging.Infof("gas limit %d, gas price %d, gas cost %d", gasLimit, gasPrice, gasCost)
 
 	if balance.Cmp(gasCost) < 0 {
 		return fmt.Errorf("insufficient funds: balance=%s, required=%s", balance.String(), gasCost.String())
@@ -266,8 +264,6 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 		return fmt.Errorf("failed to parse ABI: %w", err)
 	}
 
-	logging.Infof("packing")
-
 	data, err := parsedABI.Pack(method, params...)
 	if err != nil {
 		return fmt.Errorf("failed to pack parameters: %w", err)
@@ -283,21 +279,16 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	logging.Infof("call context")
 	var rawResult hexutil.Bytes
 	err = e.client.Client().CallContext(ctx, &rawResult, "eth_call", toCallArg(msg), "latest")
 	if err != nil {
 		return fmt.Errorf("eth_call failed: %w", err)
 	}
 
-	logging.Infof("raw res: %v", rawResult)
-
 	err = parsedABI.UnpackIntoInterface(result, method, rawResult)
 	if err != nil {
 		return fmt.Errorf("failed to unpack result: %w", err)
 	}
-
-	logging.Infof("done context")
 
 	return nil
 }
@@ -331,7 +322,6 @@ func (e *EthereumClient) waitForReceipt(txHash common.Hash, timeout time.Duratio
 }
 
 // taken from the ethclient packet with "data" field instead of "input"
-// TODO add link to issue
 func toCallArg(msg ethereum.CallMsg) interface{} {
 	arg := map[string]interface{}{
 		"from": msg.From,

@@ -1,0 +1,38 @@
+{
+"200": {
+"Throughput": 211,
+"Latency": 4843292113
+},
+"400": {
+"Throughput": 425,
+"Latency": 4559286340
+},
+"600": {
+"Throughput": 619,
+"Latency": 4925098710
+},
+"650": {
+"Throughput": 684,
+"Latency": 5309274640
+},
+"700": {
+"Throughput": 646,
+"Latency": 8150465827
+},
+"712": {
+"Throughput": 649,
+"Latency": 8468325215
+},
+"725": {
+"Throughput": 674,
+"Latency": 8517380692
+},
+"750": {
+"Throughput": 662,
+"Latency": 8951453154
+},
+"800": {
+"Throughput": 699,
+"Latency": 9264818432
+}
+}

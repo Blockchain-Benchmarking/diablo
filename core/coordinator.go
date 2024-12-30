@@ -21,7 +21,7 @@ type Coordinator struct {
 	execs map[string]func(msg messaging.Message) error
 
 	secondaries map[string]*network.Secondary
-	usersTrack  map[string][]behavior.User //secondary -> (userType, list of users)
+	usersTrack  map[string][]behavior.User
 
 	results *ResultsCollector
 
@@ -66,7 +66,7 @@ func (c *Coordinator) SendUsersToGenerators(users []behavior.User) error {
 		}
 
 		usersChunk := users[i : i+n]
-		logging.Infof("sending %d users to %s", len(usersChunk), addr)
+		logging.Debugf("sending %d users to %s", len(usersChunk), addr)
 
 		usersMap := make(map[string][]behavior.User)
 		for _, u := range usersChunk {
@@ -199,7 +199,7 @@ func (c *Coordinator) TotalUsersSent() int {
 
 func (c *Coordinator) Stop() {
 	close(c.stop)
-	logging.Infof("coordinator waiting for goroutines")
+	logging.Infof("coordinator waiting for goroutines to finish")
 	c.wg.Wait()
 	logging.Infof("coordinator done")
 }
@@ -216,10 +216,10 @@ func (c *Coordinator) handleGeneratorMessages(s *network.Secondary) {
 			logging.Infof("stop receiving messages")
 			return
 		default:
-			msg, err := network.ReadMessageWithTimeout(s.Reader(), 0) //todo
+			msg, err := s.Read()
 			if err != nil {
 				if strings.Contains(err.Error(), "EOF") {
-					logging.Warnf("EOF from %s", s.Addr())
+					logging.Debugf("EOF from %s", s.Addr())
 					return
 				} else if errors.Is(err, network.ErrTimeout) || strings.Contains(err.Error(), "timeout") {
 					continue
@@ -260,19 +260,7 @@ func (c *Coordinator) registerExecs() {
 	c.execs[messaging.StoppedType] = c.processStoppedMessage
 }
 
-/**
- * helper functions
- */
-
-func flattenUsersMap(m map[string][]behavior.User) []behavior.User {
-	result := make([]behavior.User, 0)
-	for _, arr := range m {
-		result = append(result, arr...)
-	}
-
-	return result
-}
-
+// ResultsCollector is a thread-safe structure to keep track of the received results
 type ResultsCollector struct {
 	sync.RWMutex
 	allResults []behavior.Result
@@ -298,7 +286,6 @@ func (r *ResultsCollector) CollectResults() []behavior.Result {
 	return r.allResults
 }
 
-// returns true if there are transactions submitted later
 func (r *ResultsCollector) CollectResultsWithInterval(earliestSubmit time.Time, latestDone time.Time) ([]behavior.Result, bool) {
 	r.RLock()
 	defer r.RUnlock()
@@ -360,4 +347,13 @@ func splitUsers(users map[string][]behavior.User) []map[string][]behavior.User {
 	}
 
 	return results
+}
+
+func flattenUsersMap(m map[string][]behavior.User) []behavior.User {
+	result := make([]behavior.User, 0)
+	for _, arr := range m {
+		result = append(result, arr...)
+	}
+
+	return result
 }

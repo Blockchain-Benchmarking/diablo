@@ -10,7 +10,6 @@ const (
 
 	UsersType   = "users"
 	ResultsType = "results"
-	//StatusType   = "status"
 )
 
 var Messages = map[string]Message{
@@ -23,7 +22,6 @@ var Messages = map[string]Message{
 
 	UsersType:   Users{},
 	ResultsType: Results{},
-	//StatusType:   Status{},
 }
 
 type Message interface {

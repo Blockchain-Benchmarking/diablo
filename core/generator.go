@@ -44,8 +44,8 @@ func NewGenerator(primary *network.PrimaryConn, duration string) (*Generator, er
 		primary: primary,
 
 		duration:     d,
-		runningUsers: make(map[string]behavior.User), //user IDs => user
-		users:        make(chan []behavior.User),     //TODO why is this channel buffered ?
+		runningUsers: make(map[string]behavior.User),
+		users:        make(chan []behavior.User),
 		results:      make(chan behavior.Result),
 		start:        make(chan time.Time, 1),
 		stop:         make(chan struct{}),
@@ -71,7 +71,7 @@ func (g *Generator) Run(wg *sync.WaitGroup) {
 func (g *Generator) resultsCollector() {
 	defer g.wg.Done()
 
-	batches := make(map[string][]behavior.Result) //resultType -> results
+	batches := make(map[string][]behavior.Result)
 	for res := range g.results {
 		if batches[res.Type()] == nil {
 			batches[res.Type()] = make([]behavior.Result, 0)
@@ -79,7 +79,6 @@ func (g *Generator) resultsCollector() {
 
 		batches[res.Type()] = append(batches[res.Type()], res)
 		if len(batches[res.Type()]) >= resultsBatchSize {
-			//send results
 			buf, err := json.Marshal(batches[res.Type()])
 			if err != nil {
 				logging.Errorf("Failed to encode results: %v", err)
@@ -93,12 +92,10 @@ func (g *Generator) resultsCollector() {
 				logging.Errorf("Failed to send results: %s", err.Error())
 			}
 
-			//remove
 			batches[res.Type()] = make([]behavior.Result, 0)
 		}
 	}
 
-	//send the remaining
 	for t, b := range batches {
 		buf, err := json.Marshal(b)
 		if err != nil {
@@ -118,7 +115,6 @@ func (g *Generator) resultsCollector() {
 	}
 
 	g.primary.Conn().Close()
-	logging.Infof("results collector done")
 }
 
 func (g *Generator) usersRunner() {
@@ -129,11 +125,9 @@ func (g *Generator) usersRunner() {
 
 	once := sync.OnceFunc(func() {
 		if g.duration > 0 {
-			logging.Infof("start users timer")
 			timer := time.NewTimer(g.duration)
 			go func() {
 				<-timer.C
-				logging.Infof("close stop users channel")
 				if !g.stopped {
 					g.stopped = true
 					close(g.stop)
@@ -146,14 +140,13 @@ func (g *Generator) usersRunner() {
 		}
 	})
 
-	//loop:
 	for {
 		select {
 		case <-g.stop:
-			logging.Infof("wait for users")
+			logging.Debugf("wait for users")
 			userWg.Wait()
 			close(g.results)
-			logging.Infof("users done")
+			logging.Debugf("users done")
 			return
 		case startTime := <-g.start:
 			logging.Infof("received start time: " + startTime.String())
@@ -183,7 +176,6 @@ func (g *Generator) usersRunner() {
 				}
 			}
 			pending = make([]behavior.User, 0)
-			//logging.Debugf("processed all pending users")
 
 		case users := <-g.users:
 			pending = append(pending, users...)
@@ -197,13 +189,13 @@ func (g *Generator) messagesHandler() {
 	for {
 		select {
 		case <-g.stop:
-			logging.Infof("exiting messages handler")
+			logging.Debugf("exiting messages handler")
 			return
 		default:
-			msg, err := network.ReadMessageWithTimeout(g.primary.Reader(), 0) //todo
+			msg, err := g.primary.Read()
 			if err != nil {
 				if strings.Contains(err.Error(), "EOF") {
-					logging.Warnf("EOF from primary")
+					logging.Debugf("EOF from primary")
 					return
 				} else if errors.Is(err, network.ErrTimeout) || strings.Contains(err.Error(), "timeout") {
 					continue
@@ -233,7 +225,7 @@ func (g *Generator) processUsersMessage(msg messaging.Message) error {
 		return errors.New("invalid Users message")
 	}
 	if len(usersMsg.Users) <= 0 {
-		logging.Warnf("received users u.Name()message with no users")
+		logging.Warnf("received users message with no users")
 		return nil
 	}
 
@@ -250,30 +242,23 @@ func (g *Generator) processUsersMessage(msg messaging.Message) error {
 			return err
 		}
 
-		//logging.Debugf("sending %d users to runner channel", len(users[t]))
 		g.users <- users[t]
-		//logging.Debugf("users sent to channel")
 	}
 
 	return nil
 }
 
 func (g *Generator) processStartMessage(msg messaging.Message) error {
-	logging.Infof("processing start message")
-
 	startMsg, ok := msg.(*messaging.Start)
 	if !ok {
 		return fmt.Errorf("invalid Start message %v", msg)
 	}
 
 	g.start <- time.Unix(startMsg.Start, 0)
-	logging.Infof("finished processing start message")
 	return nil
 }
 
 func (g *Generator) processStopMessage(msg messaging.Message) error {
-	logging.Infof("processing stop message")
-
 	_, ok := msg.(*messaging.Stop)
 	if !ok {
 		return fmt.Errorf("invalid Stop message %v", msg)

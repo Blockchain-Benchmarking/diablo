@@ -1,6 +1,3 @@
-/*
-Copyright © 2024 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
@@ -13,7 +10,6 @@ import (
 var tags []string
 var prim string
 
-// secondaryCmd represents the secondary command
 var secondaryCmd = &cobra.Command{
 	Use:   "secondary",
 	Short: "Launch a Diablo secondary node",

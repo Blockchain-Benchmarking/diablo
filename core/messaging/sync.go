@@ -1,6 +1,6 @@
 package messaging
 
-// PrimaryInit indicates which generator should be used by the secondary
+// PrimaryInit indicates the duration of the experiment
 type PrimaryInit struct {
 	Duration string `json:"duration"`
 }
@@ -26,6 +26,7 @@ func (SecondaryInit) Type() string {
 	return SecondaryInitType
 }
 
+// Start indicates the starting time of the experiment
 type Start struct {
 	Start int64 `json:"start"`
 }
@@ -38,6 +39,7 @@ func (Start) Type() string {
 	return StartType
 }
 
+// Stop indicates to the secondary that it should stop the experiment and that no new users will be sent
 type Stop struct{}
 
 func (Stop) Empty() Message {
@@ -48,6 +50,7 @@ func (Stop) Type() string {
 	return StopType
 }
 
+// Stopped indicates to the primary that the secondary is done
 type Stopped struct{}
 
 func (Stopped) Empty() Message {

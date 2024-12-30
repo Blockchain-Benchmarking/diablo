@@ -1,6 +1,3 @@
-/*
-Copyright © 2024 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
@@ -16,31 +13,40 @@ import (
 	"time"
 )
 
+const (
+	defaultPort     int = 5000
+	defaultDuration     = 2 * time.Minute
+
+	defaultBenchmark  = "simple"
+	defaultUser       = "stubbornPaymentUser"
+	defaultBlockchain = "ethereum"
+)
+
 var compress bool
-var outputFile, benchmark string
+var outputFile string
 var port, secondaries int
+
+var benchmark string
 var duration time.Duration
-var configFile string
 
 var tps int
 var userType string
+var blockchain string
 var endpoints []string
+var configFile string
 
-//var simpleFlags SimpleFlags
-
-// primaryCmd represents the primary command
 var primaryCmd = &cobra.Command{
 	Use:   "primary",
 	Short: "Launch a Diablo primary node",
-	Long: `Launch a Diablo primary node to run the benchmark specified by the given
-    <benchmark> configuration file on the setup specified by the <setup> file
-    using a number <nsecondary> of Diablo secondary node`,
+	Long: `Launch a Diablo primary node to run the benchmark specified by the <benchmark> flag
+     using a number of Diablo secondary nodes specified by the <secondaries> flag and a sending rate specified by the <tps> flag. The list of blockchain
+	 endpoints is specified by the <endpoints> flag.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		var output io.WriteCloser
 
 		core.SetVerbosity(verbosity)
 
-		p, err := nodes.NewPrimary(port, secondaries, benchmark, configFile, accountsFile, duration, tps, userType, endpoints)
+		p, err := nodes.NewPrimary(port, secondaries, benchmark, configFile, accountsFile, duration, tps, userType, blockchain, endpoints)
 		cobra.CheckErr(err)
 
 		if outputFile != "" {
@@ -89,17 +95,23 @@ func init() {
 		"printing on standard output.")
 	primaryCmd.Flags().IntVarP(&port, "port", "p", defaultPort, "Port to listen for Diablo secondary nodes on.")
 
-	primaryCmd.Flags().IntVar(&secondaries, "secondaries", 0, "number of secondaries")
+	primaryCmd.Flags().IntVarP(&secondaries, "secondaries", "s", 0, "Set the number of secondaries.")
+	err := primaryCmd.MarkFlagRequired("secondaries")
+	cobra.CheckErr(err)
 
-	primaryCmd.Flags().StringVar(&benchmark, "benchmark", defaultBenchmark, "benchmark to use")
-	primaryCmd.Flags().DurationVarP(&duration, "duration", "d", 0, "experiment duration")
+	primaryCmd.Flags().StringVarP(&benchmark, "benchmark", "b", defaultBenchmark, "Set the benchmark type.")
+	primaryCmd.Flags().DurationVarP(&duration, "duration", "d", defaultDuration, "Set the experiment duration.")
 
-	primaryCmd.Flags().StringVar(&configFile, "config", "", "config file")
+	primaryCmd.Flags().StringVar(&configFile, "config", "", "Set user / blockchain config file.")
 
-	primaryCmd.Flags().IntVar(&tps, "tps", defaultTps, "transactions per second")
-	primaryCmd.Flags().StringVar(&userType, "user", defaultUser, "user to use")
+	primaryCmd.Flags().IntVarP(&tps, "tps", "t", 0, "Set sending rate in transactions per second.")
+	err = primaryCmd.MarkFlagRequired("tps")
+	cobra.CheckErr(err)
 
-	primaryCmd.Flags().StringArrayVarP(&endpoints, "endpoints", "e", defaultEndpoints, "endpoints")
+	primaryCmd.Flags().StringVarP(&userType, "user", "u", defaultUser, "Set user type.")
+	primaryCmd.Flags().StringVar(&blockchain, "blockchain", defaultBlockchain, "Set blockchain.")
 
-	//TODO mark mandatory flags
+	primaryCmd.Flags().StringArrayVarP(&endpoints, "endpoints", "e", []string{}, "Set blockchain endpoints.")
+	err = primaryCmd.MarkFlagRequired("endpoints")
+	cobra.CheckErr(err)
 }
