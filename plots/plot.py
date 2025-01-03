@@ -1,7 +1,7 @@
 import json
 import matplotlib.pyplot as plt
 
-with open("coordinates.json", "r") as file:
+with open("coordinates2.json", "r") as file:
     data = json.load(file)
 
 throughput = []
@@ -23,9 +23,8 @@ plt.title("Latency as a Function of Throughput", fontsize=14)
 plt.xlabel("Throughput", fontsize=12)
 plt.ylabel("Latency", fontsize=12)
 plt.grid(True, linestyle="--", alpha=0.6)
-plt.legend()
 plt.tight_layout()
 
-plt.savefig("latency_vs_throughput.png")
+plt.savefig("latency_vs_throughput2.png")
 
 plt.close()

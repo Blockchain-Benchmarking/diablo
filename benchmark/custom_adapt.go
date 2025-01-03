@@ -31,7 +31,7 @@ type Coordinates struct {
 func (c *CustomAdaptBenchmark) Run(accounts []blockchain.Account, _ time.Duration, _ map[string]*network.Secondary, coordinator *core.Coordinator, endpoints []string) error {
 	tps := baseTps
 	limit := maxTps
-
+	latencyDiff := maxLatencyDiff
 	defaultStubbornPaymentUser, ok := userTypes["stubbornPaymentUser"]
 	if !ok {
 		return fmt.Errorf("stubbornPaymentUser not implemented")
@@ -90,16 +90,11 @@ func (c *CustomAdaptBenchmark) Run(accounts []blockchain.Account, _ time.Duratio
 			previous := graph[prev]
 			ldiff := curPerf.Latency - previous.Latency
 
-			if ldiff > maxLatencyDiff {
-				logging.Warnf("latency difference reached %s", ldiff.String())
+			if ldiff > latencyDiff || curPerf.Throughput < int(float64(tps)*0.95) {
 				limit = tps
 				newTps = (prev + tps) / 2
-			} else if curPerf.Throughput < int(float64(tps)*0.95) {
-				limit = tps
-				newTps = (prev + tps) / 2
-				logging.Warnf("throughput failed to keep up, trying with %d", newTps)
+				latencyDiff = 1 * time.Second
 			} else {
-				logging.Infof("performance improving, increasing tps")
 				newTps = int(math.Min(float64(tps+incrementTps), float64(limit)))
 			}
 
