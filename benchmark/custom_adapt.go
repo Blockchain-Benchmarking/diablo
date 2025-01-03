@@ -53,7 +53,7 @@ func (c *CustomAdaptBenchmark) Run(accounts []blockchain.Account, _ time.Duratio
 
 bench:
 	for {
-		startTime := time.Now().Add(30 * time.Second)
+		startTime := time.Now().Add(60 * time.Second) //30 for store
 		endTime := startTime.Add(2 * time.Minute)
 		err = coordinator.SendStartToAll(startTime)
 		if err != nil {
