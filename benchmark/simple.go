@@ -30,7 +30,7 @@ var userTypes = map[string]User{
 	"stubbornStoreUser": {
 		Name: "stubbornStoreUser",
 		Params: map[string]interface{}{
-			"timeout":      "15s",
+			"timeout":      "30s",
 			"max_attempts": 1,
 			"random":       true,
 			"actions":      []store.Info{},
