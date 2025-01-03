@@ -128,6 +128,7 @@ func (g *Generator) usersRunner() {
 			timer := time.NewTimer(g.duration)
 			go func() {
 				<-timer.C
+				logging.Debugf("experiment timer done")
 				if !g.stopped {
 					g.stopped = true
 					close(g.stop)
@@ -263,6 +264,8 @@ func (g *Generator) processStopMessage(msg messaging.Message) error {
 	if !ok {
 		return fmt.Errorf("invalid Stop message %v", msg)
 	}
+
+	logging.Debugf("processing stop message from coordinator")
 
 	if !g.stopped {
 		g.stopped = true

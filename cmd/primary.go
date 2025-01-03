@@ -6,6 +6,7 @@ import (
 	"diablo/core"
 	"diablo/core/logging"
 	"encoding/json"
+	"fmt"
 	"github.com/spf13/cobra"
 	"io"
 	"os"
@@ -14,8 +15,7 @@ import (
 )
 
 const (
-	defaultPort     int = 5000
-	defaultDuration     = 2 * time.Minute
+	defaultPort int = 5000
 
 	defaultBenchmark  = "simple"
 	defaultUser       = "stubbornPaymentUser"
@@ -46,6 +46,10 @@ var primaryCmd = &cobra.Command{
 		var output io.WriteCloser
 
 		core.SetVerbosity(verbosity)
+
+		if benchmark == "simple" && duration == 0 {
+			cobra.CheckErr(fmt.Errorf("duration flag -d or --duration should be specified when running a simple benchmark"))
+		}
 
 		p, err := nodes.NewPrimary(port, secondaries, benchmark, configFile, accountsFile, duration, tps, userType, blockchain, endpoints)
 		cobra.CheckErr(err)
@@ -101,7 +105,7 @@ func init() {
 	cobra.CheckErr(err)
 
 	primaryCmd.Flags().StringVarP(&benchmark, "benchmark", "b", defaultBenchmark, "Set the benchmark type.")
-	primaryCmd.Flags().DurationVarP(&duration, "duration", "d", defaultDuration, "Set the experiment duration.")
+	primaryCmd.Flags().DurationVarP(&duration, "duration", "d", 0, "Set the experiment duration.")
 
 	primaryCmd.Flags().StringVar(&configFile, "config", "", "Set user / blockchain config file.")
 
