@@ -2,7 +2,6 @@ package blockchain
 
 import (
 	"context"
-	"diablo/core/logging"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum"
@@ -304,7 +303,6 @@ func (e *EthereumClient) waitForReceipt(txHash common.Hash, timeout time.Duratio
 
 		receipt, err = e.client.TransactionReceipt(context.Background(), txHash)
 		if err == nil {
-			logging.Infof("success, gas used: %d", receipt.GasUsed)
 			break
 		}
 

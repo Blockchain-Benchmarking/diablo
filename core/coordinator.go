@@ -206,7 +206,7 @@ func (c *Coordinator) Stop() {
 
 func (c *Coordinator) handleGeneratorMessages(s *network.Secondary) {
 	defer func() {
-		logging.Infof("finished with handling gen message")
+		logging.Debugf("finished with handling generator messages")
 		c.wg.Done()
 	}()
 
