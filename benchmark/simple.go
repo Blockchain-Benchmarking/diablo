@@ -27,7 +27,7 @@ var userTypes = map[string]User{
 			"duration":     0,
 		},
 	},
-	"stubbornRandomStoreUser": {
+	"stubbornStoreUser": {
 		Name: "stubbornStoreUser",
 		Params: map[string]interface{}{
 			"timeout":      "15s",
