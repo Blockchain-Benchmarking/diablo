@@ -34,9 +34,9 @@ func (c *CustomAdaptBenchmark) Run(accounts []blockchain.Account, _ time.Duratio
 	latencyDiff := maxLatencyDiff
 	increment := incrementTps
 
-	defaultStubbornPaymentUser, ok := userTypes["stubbornPaymentUser"]
+	defaultStubbornPaymentUser, ok := userTypes["stubbornStoreUser"]
 	if !ok {
-		return fmt.Errorf("stubbornPaymentUser not implemented")
+		return fmt.Errorf("stubbornStoreUser not implemented")
 	}
 	users, err := createStubbornUsersFromAccounts(accounts, tps, "ethereum", endpoints, defaultStubbornPaymentUser)
 
