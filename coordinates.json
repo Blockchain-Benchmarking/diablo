@@ -1,42 +1,38 @@
 {
   "200": {
-    "throughput": 206,
-    "latency": 4812960438
+    "throughput": 208,
+    "latency": 4822306503
   },
   "300": {
-    "throughput": 312,
-    "latency": 4384997565
+    "throughput": 315,
+    "latency": 4403091131
   },
   "400": {
-    "throughput": 413,
-    "latency": 4520950341
+    "throughput": 420,
+    "latency": 4548286767
   },
   "500": {
-    "throughput": 516,
-    "latency": 4701278654
+    "throughput": 525,
+    "latency": 4728447664
   },
   "600": {
-    "throughput": 619,
-    "latency": 4891747485
+    "throughput": 601,
+    "latency": 6363753812
   },
   "650": {
-    "throughput": 626,
-    "latency": 6452855247
+    "throughput": 625,
+    "latency": 6984132751
+  },
+  "675": {
+    "throughput": 642,
+    "latency": 7188433719
+  },
+  "687": {
+    "throughput": 657,
+    "latency": 7219461733
   },
   "700": {
-    "throughput": 647,
-    "latency": 7739395927
-  },
-  "712": {
-    "throughput": 649,
-    "latency": 7989488022
-  },
-  "725": {
-    "throughput": 643,
-    "latency": 8672865487
-  },
-  "750": {
-    "throughput": 622,
-    "latency": 9170326100
+    "throughput": 626,
+    "latency": 8650504535
   }
 }
