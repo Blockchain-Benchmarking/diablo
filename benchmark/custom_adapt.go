@@ -32,6 +32,8 @@ func (c *CustomAdaptBenchmark) Run(accounts []blockchain.Account, _ time.Duratio
 	tps := baseTps
 	limit := maxTps
 	latencyDiff := maxLatencyDiff
+	increment := incrementTps
+
 	defaultStubbornPaymentUser, ok := userTypes["stubbornPaymentUser"]
 	if !ok {
 		return fmt.Errorf("stubbornPaymentUser not implemented")
@@ -49,6 +51,7 @@ func (c *CustomAdaptBenchmark) Run(accounts []blockchain.Account, _ time.Duratio
 		return err
 	}
 
+bench:
 	for {
 		startTime := time.Now().Add(30 * time.Second)
 		endTime := startTime.Add(2 * time.Minute)
@@ -95,7 +98,16 @@ func (c *CustomAdaptBenchmark) Run(accounts []blockchain.Account, _ time.Duratio
 				newTps = (prev + tps) / 2
 				latencyDiff = 1 * time.Second
 			} else {
-				newTps = int(math.Min(float64(tps+incrementTps), float64(limit)))
+				newTps = int(math.Min(float64(tps+increment), float64(limit)))
+				_, ok := graph[newTps]
+				for ok {
+					increment = increment / 2
+					if increment == 0 {
+						break bench
+					}
+					newTps = int(math.Min(float64(tps+increment), float64(limit)))
+					_, ok = graph[newTps]
+				}
 			}
 
 			if math.Abs(float64(prev-newTps)) < 10 {
