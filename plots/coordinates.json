@@ -1,38 +1,42 @@
 {
-"200": {
-"Throughput": 211,
-"Latency": 4843292113
-},
-"400": {
-"Throughput": 425,
-"Latency": 4559286340
-},
-"600": {
-"Throughput": 619,
-"Latency": 4925098710
-},
-"650": {
-"Throughput": 684,
-"Latency": 5309274640
-},
-"700": {
-"Throughput": 646,
-"Latency": 8150465827
-},
-"712": {
-"Throughput": 649,
-"Latency": 8468325215
-},
-"725": {
-"Throughput": 674,
-"Latency": 8517380692
-},
-"750": {
-"Throughput": 662,
-"Latency": 8951453154
-},
-"800": {
-"Throughput": 699,
-"Latency": 9264818432
-}
+  "200": {
+    "throughput": 206,
+    "latency": 4812960438
+  },
+  "300": {
+    "throughput": 312,
+    "latency": 4384997565
+  },
+  "400": {
+    "throughput": 413,
+    "latency": 4520950341
+  },
+  "500": {
+    "throughput": 516,
+    "latency": 4701278654
+  },
+  "600": {
+    "throughput": 619,
+    "latency": 4891747485
+  },
+  "650": {
+    "throughput": 626,
+    "latency": 6452855247
+  },
+  "700": {
+    "throughput": 647,
+    "latency": 7739395927
+  },
+  "712": {
+    "throughput": 649,
+    "latency": 7989488022
+  },
+  "725": {
+    "throughput": 643,
+    "latency": 8672865487
+  },
+  "750": {
+    "throughput": 622,
+    "latency": 9170326100
+  }
 }
