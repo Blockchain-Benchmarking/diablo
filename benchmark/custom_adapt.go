@@ -28,7 +28,7 @@ type Coordinates struct {
 	Latency    time.Duration `json:"latency"`
 }
 
-func (c *CustomAdaptBenchmark) Run(accounts []blockchain.Account, _ time.Duration, _ map[string]*network.Secondary, coordinator *core.Coordinator, endpoints []string) error {
+func (c *CustomAdaptBenchmark) Run(accounts []blockchain.Account, _ map[string]*network.Secondary, coordinator *core.Coordinator, endpoints []string) error {
 	tps := baseTps
 	limit := maxTps
 	latencyDiff := maxLatencyDiff

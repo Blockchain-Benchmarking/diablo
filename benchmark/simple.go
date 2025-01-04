@@ -63,7 +63,7 @@ func NewSimpleBenchmark(tps int, userType string, blockchain string) (Benchmark,
 	}, nil
 }
 
-func (s *SimpleBenchmark) Run(accounts []blockchain.Account, d time.Duration, secondaries map[string]*network.Secondary, coordinator *core.Coordinator, endpoints []string) error {
+func (s *SimpleBenchmark) Run(accounts []blockchain.Account, secondaries map[string]*network.Secondary, coordinator *core.Coordinator, endpoints []string) error {
 	wk, err := createStubbornUsersFromAccounts(accounts, s.Tps, s.Blockchain, endpoints, s.User)
 	if err != nil {
 		return fmt.Errorf("failed to create users: %w", err)
@@ -102,14 +102,6 @@ func (s *SimpleBenchmark) Run(accounts []blockchain.Account, d time.Duration, se
 	if err != nil {
 		return err
 	}
-
-	time.Sleep(d + 10*time.Second)
-
-	res, _ := coordinator.CollectResultsWithInterval(startTime, startTime.Add(d).Add(5*time.Second))
-	latency := behavior.AverageLatency(res)
-	throughput := behavior.Throughput(res, d)
-	logging.Infof("Average Latency: %s, Throughput: %d/s", latency.String(), throughput)
-
 	return nil
 }
 

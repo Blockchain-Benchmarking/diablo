@@ -98,7 +98,7 @@ func (p *Primary) Run() ([]behavior.Result, error) {
 	}
 
 	coordinator := core.NewCoordinator(secondaries)
-	err = b.Run(p.Accounts, p.Duration, secondaries, coordinator, p.Endpoints)
+	err = b.Run(p.Accounts, secondaries, coordinator, p.Endpoints)
 	if err != nil {
 		return nil, fmt.Errorf("failed during benchmark run: %w", err)
 	}
