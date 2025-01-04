@@ -1,0 +1,42 @@
+{
+  "200": {
+    "throughput": 205,
+    "latency": 4693961472
+  },
+  "300": {
+    "throughput": 309,
+    "latency": 4324630951
+  },
+  "400": {
+    "throughput": 410,
+    "latency": 4482215654
+  },
+  "500": {
+    "throughput": 512,
+    "latency": 4716039303
+  },
+  "600": {
+    "throughput": 608,
+    "latency": 5548756294
+  },
+  "700": {
+    "throughput": 666,
+    "latency": 7435006858
+  },
+  "712": {
+    "throughput": 663,
+    "latency": 8009921679
+  },
+  "725": {
+    "throughput": 647,
+    "latency": 8244710569
+  },
+  "750": {
+    "throughput": 624,
+    "latency": 8793411251
+  },
+  "800": {
+    "throughput": 692,
+    "latency": 9329429357
+  }
+}
