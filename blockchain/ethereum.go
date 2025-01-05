@@ -183,6 +183,7 @@ func (e *EthereumClient) DeployContract(abiString string, bytecode []byte, timeo
 }
 
 func (e *EthereumClient) SendContractTransaction(contractAddress string, abiString string, method string, timeout time.Duration, params ...interface{}) error {
+	start := time.Now()
 	parsedABI, err := abi.JSON(strings.NewReader(abiString))
 	if err != nil {
 		return fmt.Errorf("failed to parse ABI: %w", err)
@@ -249,16 +250,23 @@ func (e *EthereumClient) SendContractTransaction(contractAddress string, abiStri
 		return fmt.Errorf("failed to send transaction: %w", err)
 	}
 
+	logging.Debugf("sending transaction took " + time.Since(start).String())
+	start = time.Now()
+
 	hash := signedTx.Hash()
 	_, err = e.waitForReceipt(hash, timeout)
 	if err != nil {
 		return err
 	}
 
+	logging.Debugf("waiting for receipt took " + time.Since(start).String())
+
 	return nil
 }
 
 func (e *EthereumClient) CallContract(contractAddress string, abiString string, method string, timeout time.Duration, result interface{}, params ...interface{}) error {
+	start := time.Now()
+
 	parsedABI, err := abi.JSON(strings.NewReader(abiString))
 	if err != nil {
 		return fmt.Errorf("failed to parse ABI: %w", err)
@@ -279,6 +287,8 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
+	logging.Debugf("prepare call took " + time.Since(start).String())
+	start = time.Now()
 	var rawResult hexutil.Bytes
 	err = e.client.Client().CallContext(ctx, &rawResult, "eth_call", toCallArg(msg), "latest")
 	if err != nil {
@@ -289,6 +299,8 @@ func (e *EthereumClient) CallContract(contractAddress string, abiString string, 
 	if err != nil {
 		return fmt.Errorf("failed to unpack result: %w", err)
 	}
+
+	logging.Debugf("call took " + time.Since(start).String())
 
 	return nil
 }
