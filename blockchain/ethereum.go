@@ -183,7 +183,6 @@ func (e *EthereumClient) DeployContract(abiString string, bytecode []byte, timeo
 }
 
 func (e *EthereumClient) SendContractTransaction(contractAddress string, abiString string, method string, timeout time.Duration, params ...interface{}) error {
-	logging.Warnf("sending contract transaction with timeout " + timeout.String())
 	parsedABI, err := abi.JSON(strings.NewReader(abiString))
 	if err != nil {
 		return fmt.Errorf("failed to parse ABI: %w", err)
@@ -260,7 +259,6 @@ func (e *EthereumClient) SendContractTransaction(contractAddress string, abiStri
 }
 
 func (e *EthereumClient) CallContract(contractAddress string, abiString string, method string, timeout time.Duration, result interface{}, params ...interface{}) error {
-	logging.Warnf("calling contract with timeout " + timeout.String())
 	parsedABI, err := abi.JSON(strings.NewReader(abiString))
 	if err != nil {
 		return fmt.Errorf("failed to parse ABI: %w", err)
@@ -311,6 +309,7 @@ func (e *EthereumClient) waitForReceipt(txHash common.Hash, timeout time.Duratio
 
 		if errors.Is(err, ethereum.NotFound) {
 			if time.Since(start) > timeout {
+				logging.Warnf("timedout by " + time.Since(start).String())
 				return nil, TimeoutError
 			}
 			continue
