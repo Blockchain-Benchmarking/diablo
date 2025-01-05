@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"os"
-	"strconv"
 	"time"
 )
 
@@ -179,7 +178,7 @@ func createStubbornUsersFromAccounts(accounts []blockchain.Account, tps int, imp
 
 		user.Params["tps"] = userTps
 		users[i], err = userType.New(implementation, blockchain.Config{
-			Id:         strconv.Itoa(i),
+			Id:         acc.Address,
 			Endpoint:   endpoints[i%len(endpoints)],
 			Addresses:  addresses,
 			PrivateKey: acc.PrivateKey,
