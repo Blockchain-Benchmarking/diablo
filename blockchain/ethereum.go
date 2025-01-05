@@ -2,7 +2,6 @@ package blockchain
 
 import (
 	"context"
-	"diablo/core/logging"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum"
@@ -309,7 +308,6 @@ func (e *EthereumClient) waitForReceipt(txHash common.Hash, timeout time.Duratio
 
 		if errors.Is(err, ethereum.NotFound) {
 			if time.Since(start) > timeout {
-				logging.Warnf("timedout by " + time.Since(start).String())
 				return nil, TimeoutError
 			}
 			continue
