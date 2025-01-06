@@ -20,7 +20,7 @@ var userTypes = map[string]User{
 		Name: "stubbornPaymentUser",
 		Params: map[string]interface{}{
 			"timeout":      "15s",
-			"max_attempts": 1,
+			"max_attempts": 5,
 			"random":       true,
 			"payments":     []payment.Info{},
 			"duration":     0,
