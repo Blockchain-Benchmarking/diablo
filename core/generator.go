@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-const resultsBatchSize = 10
+const resultsBatchSize = 100
 
 type Generator struct {
 	wg      *sync.WaitGroup
