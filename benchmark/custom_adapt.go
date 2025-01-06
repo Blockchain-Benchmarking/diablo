@@ -18,7 +18,7 @@ const (
 	incrementTps = 100
 	maxTps       = 800
 
-	maxLatencyDiff = 2 * time.Second
+	maxLatencyDiff = 5 * time.Second
 )
 
 type CustomAdaptBenchmark struct{}
@@ -93,13 +93,10 @@ bench:
 			previous := graph[prev]
 			ldiff := curPerf.Latency - previous.Latency
 
-			if ldiff > latencyDiff {
-				limit = tps
-				increment = 20
-				newTps = prev + increment
-			} else if curPerf.Throughput < int(float64(tps)*0.95) {
+			if ldiff > latencyDiff || curPerf.Throughput < int(float64(tps)*0.95) {
 				limit = tps
 				newTps = (prev + tps) / 2
+				latencyDiff = 1 * time.Second
 			} else {
 				newTps = int(math.Min(float64(tps+increment), float64(limit)))
 				_, ok := graph[newTps]
