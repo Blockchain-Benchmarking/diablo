@@ -18,7 +18,7 @@ const (
 	incrementTps = 100
 	maxTps       = 800
 
-	maxLatencyDiff = 5 * time.Second
+	maxLatencyDiff = 2 * time.Second
 )
 
 type CustomAdaptBenchmark struct{}
@@ -34,9 +34,9 @@ func (c *CustomAdaptBenchmark) Run(accounts []blockchain.Account, _ map[string]*
 	latencyDiff := maxLatencyDiff
 	increment := incrementTps
 
-	defaultStubbornPaymentUser, ok := userTypes["stubbornStoreUser"]
+	defaultStubbornPaymentUser, ok := userTypes["stubbornPaymentUser"]
 	if !ok {
-		return fmt.Errorf("stubbornStoreUser not implemented")
+		return fmt.Errorf("stubbornPaymentUser not implemented")
 	}
 	users, err := createStubbornUsersFromAccounts(accounts, tps, "ethereum", endpoints, defaultStubbornPaymentUser)
 
@@ -53,22 +53,22 @@ func (c *CustomAdaptBenchmark) Run(accounts []blockchain.Account, _ map[string]*
 
 bench:
 	for {
-		startTime := time.Now().Add(60 * time.Second) //30 for store
+		startTime := time.Now().Add(30 * time.Second)
 		endTime := startTime.Add(2 * time.Minute)
 		err = coordinator.SendStartToAll(startTime)
 		if err != nil {
 			return err
 		}
 
-		time.Sleep(2*time.Minute + 30*time.Second + 20*time.Second) //10 additional seconds for last results to arrive
+		time.Sleep(2*time.Minute + 30*time.Second + 10*time.Second)
 
-		res, ok := coordinator.CollectResultsWithInterval(startTime, endTime.Add(20*time.Second))
+		res, ok := coordinator.CollectResultsWithInterval(startTime, endTime.Add(10*time.Second))
 		logging.Infof("intermediary %d results", len(res))
 
 		for !ok {
 			logging.Warnf("missing %d results, waiting", tps*120-len(res))
 			time.Sleep(5 * time.Second)
-			res, ok = coordinator.CollectResultsWithInterval(startTime, endTime.Add(20*time.Second))
+			res, ok = coordinator.CollectResultsWithInterval(startTime, endTime.Add(10*time.Second))
 			logging.Infof("intermediary %d results", len(res))
 		}
 
@@ -93,10 +93,13 @@ bench:
 			previous := graph[prev]
 			ldiff := curPerf.Latency - previous.Latency
 
-			if ldiff > latencyDiff || curPerf.Throughput < int(float64(tps)*0.95) {
+			if ldiff > latencyDiff {
+				limit = tps
+				increment = 20
+				newTps = prev + increment
+			} else if curPerf.Throughput < int(float64(tps)*0.95) {
 				limit = tps
 				newTps = (prev + tps) / 2
-				latencyDiff = 1 * time.Second
 			} else {
 				newTps = int(math.Min(float64(tps+increment), float64(limit)))
 				_, ok := graph[newTps]
