@@ -15,12 +15,12 @@ type CustomBenchmark struct{}
 func (c *CustomBenchmark) Run(accounts []blockchain.Account, secondaries map[string]*network.Secondary, coordinator *core.Coordinator, endpoints []string) error {
 	//TODO: Write benchmark here
 
-	defaultStubbornPaymentUser, ok := userTypes["stubbornPaymentUser"]
+	defaultStubbornStoreUser, ok := userTypes["stubbornStoreUser"]
 	if !ok {
 		return fmt.Errorf("stubbornStoreUser not implemented")
 	}
 
-	wk, err := createStubbornUsersFromAccounts(accounts[:300], 400, "ethereum", endpoints, defaultStubbornPaymentUser)
+	wk, err := createStubbornUsersFromAccounts(accounts[:300], 600, "ethereum", endpoints, defaultStubbornStoreUser)
 	if err != nil {
 		return fmt.Errorf("failed to create users: %w", err)
 	}
@@ -53,18 +53,18 @@ func (c *CustomBenchmark) Run(accounts []blockchain.Account, secondaries map[str
 		i = i + n
 	}
 
-	burstStoreUser, ok := userTypes["stubbornStoreUser"]
+	burstPaymentUser, ok := userTypes["stubbornPaymentUser"]
 	if !ok {
-		return fmt.Errorf("stubbornStoreUser not implemented")
+		return fmt.Errorf("stubbornPaymentUser not implemented")
 	}
 
-	burstStoreUser.Params["duration"] = "30s"
-	wk, err = createStubbornUsersFromAccounts(accounts[300:], 2500, "ethereum", endpoints, burstStoreUser)
+	burstPaymentUser.Params["duration"] = "30s"
+	wk, err = createStubbornUsersFromAccounts(accounts[300:], 1000, "ethereum", endpoints, burstPaymentUser)
 	if err != nil {
 		return fmt.Errorf("failed to create users: %w", err)
 	}
 
-	//start payment users
+	//start store users
 	startTime := time.Now().Add(5 * time.Second)
 	err = coordinator.SendStartToAll(startTime)
 	if err != nil {
