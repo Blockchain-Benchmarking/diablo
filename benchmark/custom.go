@@ -20,7 +20,7 @@ func (c *CustomBenchmark) Run(accounts []blockchain.Account, secondaries map[str
 		return fmt.Errorf("stubbornStoreUser not implemented")
 	}
 
-	wk, err := createStubbornUsersFromAccounts(accounts[:300], 800, "ethereum", endpoints, defaultStubbornPaymentUser)
+	wk, err := createStubbornUsersFromAccounts(accounts[:300], 400, "ethereum", endpoints, defaultStubbornPaymentUser)
 	if err != nil {
 		return fmt.Errorf("failed to create users: %w", err)
 	}
@@ -59,7 +59,7 @@ func (c *CustomBenchmark) Run(accounts []blockchain.Account, secondaries map[str
 	}
 
 	burstStoreUser.Params["duration"] = "30s"
-	wk, err = createStubbornUsersFromAccounts(accounts[300:], 600, "ethereum", endpoints, burstStoreUser)
+	wk, err = createStubbornUsersFromAccounts(accounts[300:], 1500, "ethereum", endpoints, burstStoreUser)
 	if err != nil {
 		return fmt.Errorf("failed to create users: %w", err)
 	}
