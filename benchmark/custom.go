@@ -59,7 +59,7 @@ func (c *CustomBenchmark) Run(accounts []blockchain.Account, secondaries map[str
 	}
 
 	burstStoreUser.Params["duration"] = "30s"
-	wk, err = createStubbornUsersFromAccounts(accounts[300:], 1500, "ethereum", endpoints, burstStoreUser)
+	wk, err = createStubbornUsersFromAccounts(accounts[300:], 2500, "ethereum", endpoints, burstStoreUser)
 	if err != nil {
 		return fmt.Errorf("failed to create users: %w", err)
 	}
