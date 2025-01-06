@@ -3,6 +3,7 @@ package behavior
 import (
 	"diablo/blockchain"
 	"diablo/core/logging"
+	"strconv"
 	"time"
 )
 
@@ -46,19 +47,31 @@ type Result interface {
 }
 
 // Throughput calculates the throughput over the given duration
-func Throughput(results []Result, duration time.Duration) int {
+func Throughput(results []Result) int {
 	if len(results) == 0 {
 		return 0
 	}
 
+	firstSubmit := results[0].Start()
+	lastEnd := results[0].End()
+
 	successes := 0
 	for _, result := range results {
+		if result.Start().Before(firstSubmit) {
+			firstSubmit = result.Start()
+		}
+
+		if result.End().After(lastEnd) {
+			lastEnd = result.End()
+		}
+
 		if result.Success() {
 			successes++
 		}
 	}
 
-	return int(float64(successes) / duration.Seconds())
+	logging.Debugf(strconv.Itoa(int(float64(successes))) + " successes in " + lastEnd.Sub(firstSubmit).String() + " seconds total")
+	return int(float64(successes) / lastEnd.Sub(firstSubmit).Seconds())
 }
 
 // AverageLatency calculates the average latency in seconds

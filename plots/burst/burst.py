@@ -108,7 +108,6 @@ def plot_combined_graphs(directory, metrics_list, filenames, output_file):
 
         axes[idx * 2].plot(times, transfer_workload_values, label="Transfer Workload", linestyle="-", marker="o")
         axes[idx * 2].plot(times, read_write_workload_values, label="Read+Write Workload", linestyle="--", marker="x")
-        axes[idx * 2].set_title(f"Workload Curves for {filename}")
         axes[idx * 2].set_xlabel("Time (s)")
         axes[idx * 2].set_ylabel("Workload")
         axes[idx * 2].set_xlim(0, max_active_time)
@@ -117,9 +116,8 @@ def plot_combined_graphs(directory, metrics_list, filenames, output_file):
 
         axes[idx * 2 + 1].plot(times, transfer_success_values, label="Transfer Successes", linestyle="-", marker="o")
         axes[idx * 2 + 1].plot(times, read_write_success_values, label="Read+Write Successes", linestyle="--", marker="x")
-        axes[idx * 2 + 1].set_title(f"Success Curves for {filename}")
         axes[idx * 2 + 1].set_xlabel("Time (s)")
-        axes[idx * 2 + 1].set_ylabel("Successes")
+        axes[idx * 2 + 1].set_ylabel("Output")
         axes[idx * 2 + 1].set_xlim(0, max_active_time)
         axes[idx * 2 + 1].legend()
         axes[idx * 2 + 1].grid(True)

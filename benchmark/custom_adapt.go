@@ -75,7 +75,7 @@ bench:
 		logging.Infof("checking %d results", len(res))
 
 		curPerf := Coordinates{
-			Throughput: behavior.Throughput(res, 2*time.Minute),
+			Throughput: behavior.Throughput(res),
 			Latency:    behavior.AverageLatency(res),
 		}
 
