@@ -1,0 +1,7 @@
+blockchain: "ethereum"
+user:
+  name: "stubbornPaymentUser"
+  params:
+    timeout: "15s"
+    max_attempts: 5
+    random: true

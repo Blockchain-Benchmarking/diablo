@@ -1,43 +1,35 @@
 # Diablo: Distributed Analytical BLOckchain Benchmark Framework
 
-Diablo, an analytical blockchain benchmark framework focusing on distributed clients performing real-world workloads. The focus of this benchmark is to provide a benchmark framework with a focus on truly distributed clients performing realistic workloads to evaluate and analyse different blockchain systems.
+Diablo, an analytical blockchain benchmark framework focusing on distributed clients.
 
-## Other Sections
+## Applications
 
-* [New Chains](docs/new-chains.md)
-    * [Logging](docs/logging.md)
-* [Running the example](docs/sample-example.md)
+* Payment
+* Store
 
-## Workloads
+## User behaviors
 
-* ICO
-* Auction
-* Gameplay
-* Gambling
-* Wiki/Website Access
-* Shipping Containers
-* Exchange
+* Stubborn 
 
 ## Architecture
 
-Since the benchmark is developed with distributed clients, the architecture can become quite complex. The main goal is to limit the required implementation details to allow for easy adoption of new chains. We also focus on providing ease of workload definition, which can help provide a pathway for new workloads to be designed in future.
+![docs/design.png](docs/design.png)
 
-![docs/architecture](docs/architecture.jpg)
+The communication between aspects is done via a TCP interface and an exchange of JSON encoded Packets.
 
-
-The communication between aspects is as follows:
-
-![docs/communication](docs/communication.jpg)
-
-### Configurations
+### Main components
 
 #### Benchmark
 
-The benchmark configuration defines the workload, the number of client machines and the number of worker threads running on the client. This is where the main aspect of the benchmark is defined.
+The benchmark defines the workload and the experiment steps. It implements the Benchmark interface. Currently, two types of benchmarks are implemented. The Simple benchmark and the Custom benchmark which is specified programmatically by the Diablo user.
 
-#### Chain
+#### Blockchain
 
-The chain configuration defines the information about the blockchain network. It provides the list of blockchain node addresses and provides information about keys and accounts. The keys are optional, but required if a genesis already exists, or, the blockchain is currently already running.
+Considered as a black box implementing the Blockchain interface. 
+
+#### Users and Applications 
+
+The workload consists in Users specific to the previously mentioned Applications. They interact with an Application which contains a Blockchain client that connects to a given Blockchain endpoint. 
 
 ### Primary
 
@@ -45,14 +37,13 @@ This is the main Diablo node, it orchestrates the benchmark to be run. It genera
 
 ### Secondary
 
-The secondary clients are acting as clients interacting with the blockchain. Each secondary communicates with the primary to recieve commands and run the related work. It may control a group of worker threads, or just run one thread. It connects with the blockchain node and executes the transactions to the connected node.
+The secondary clients are acting as clients interacting with the blockchain. Each secondary communicates with the primary to receive commands and run the related work. It controls a group of users.
 
 ## Getting Started
 
 ### Requirements
 
-* Go `go version 1.14` or greater.
-
+* Go `go version 1.22` or greater.
 
 ### Installation
 
@@ -62,27 +53,23 @@ The secondary clients are acting as clients interacting with the blockchain. Eac
 
 ### Running the Benchmark
 
-1. Start the primary benchmark node:
+1. Start the primary node to run a simple benchmark:
 ```sh
-./diablo primary -c /path/to/benchmark/config -cc /path/to/chain/config -a "<listen_address>:<port>"
+./diablo primary --secondaries <number-of-secondaries> --benchmark simple --duration <duration> --tps <rate> --blockchain blockchain-name --user user-type --accounts .config/accounts-file.yaml -o <output-file> -e <blockchain-endpoint> -e <blockchain-endpoint> -e <blockchain-endpoint> 
 ```
 for example:
 ```sh
-./diablo primary -c  scripts/sample/workloads/sample_simple.yaml -cc scripts/sample/blockchain-configs/ganache-basic-accounts.yaml -a "0.0.0.0:8323"
+./diablo primary --secondaries 1 --benchmark simple --duration 120s --tps 400 --blockchain ethereum --user stubbornPaymentUser --accounts .config/400accounts.yaml -o output.json -e "ws://127.0.0.1:9000" -e "ws://127.0.0.1:9001" 
 ```
 
-2. Once you see the "ready to connect", start the secondaries on their respective machines:
+2. Start the secondaries on their respective machines:
 ```sh
-./diablo secondary -m "<Primary IP>:<port>" -cc /path/to/chain/config -c /path/to/config
+./diablo secondary --primary <address:port>
 ```
 for example:
 ```sh
-./diablo secondary -m "127.0.0.1:8323" --chain-config scripts/sample/blockchain-configs/ganache-basic-accounts.yaml --config scripts/sample/workloads/sample-simple.yaml
+./diablo secondary --primary "127.0.0.1:5000" 
 ```
-
-If you would like to run the sample benchmark for seeing how diablo operates, please see [Sample Example](docs/sample-example.md).
-
-It will then run through the benchmark and perform the relevant analysis.
 
 ## Reading Material (for development)
 

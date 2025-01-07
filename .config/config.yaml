@@ -1,6 +1,0 @@
-blockchain: "ethereum"
-user:
-  name: "stubbornPaymentUser"
-  params:
-    timeout: "3s"
-    max_attempts: 1

@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-var userTypes = map[string]User{
+var UserTypes = map[string]User{
 	"stubbornPaymentUser": {
 		Name: "stubbornPaymentUser",
 		Params: map[string]interface{}{
@@ -50,7 +50,7 @@ type User struct {
 }
 
 func NewSimpleBenchmark(tps int, userType string, blockchain string) (Benchmark, error) {
-	def, ok := userTypes[userType]
+	def, ok := UserTypes[userType]
 	if !ok {
 		return nil, fmt.Errorf("user type %s not defined for simple benchmark", userType)
 	}
@@ -63,7 +63,7 @@ func NewSimpleBenchmark(tps int, userType string, blockchain string) (Benchmark,
 }
 
 func (s *SimpleBenchmark) Run(accounts []blockchain.Account, secondaries map[string]*network.Secondary, coordinator *core.Coordinator, endpoints []string) error {
-	wk, err := createStubbornUsersFromAccounts(accounts, s.Tps, s.Blockchain, endpoints, s.User)
+	wk, err := CreateStubbornUsersFromAccounts(accounts, s.Tps, s.Blockchain, endpoints, s.User)
 	if err != nil {
 		return fmt.Errorf("failed to create users: %w", err)
 	}
@@ -104,7 +104,7 @@ func (s *SimpleBenchmark) Run(accounts []blockchain.Account, secondaries map[str
 	return nil
 }
 
-func createStubbornUsersFromAccounts(accounts []blockchain.Account, tps int, implementation string, endpoints []string, user User) ([]behavior.User, error) {
+func CreateStubbornUsersFromAccounts(accounts []blockchain.Account, tps int, implementation string, endpoints []string, user User) ([]behavior.User, error) {
 	var addresses []string
 	for _, acc := range accounts {
 		addresses = append(addresses, acc.Address)

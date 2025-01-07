@@ -88,9 +88,6 @@ func (p *Primary) Run() ([]behavior.Result, error) {
 			}
 		}
 
-	case "adapt":
-		b = &benchmark.CustomAdaptBenchmark{}
-
 	case "custom":
 		b = &benchmark.CustomBenchmark{}
 	default:
