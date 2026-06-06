@@ -1,0 +1,37 @@
+# Pre-funded key + UTXO pool for the BSV adapter.
+#
+# Produce this file ONCE via a funding step (see blockchains/nbsv/README.md):
+# broadcast a fan-out transaction from Metanet Desktop's BRC-100 interface
+# (http://localhost:3321) that splits real coins into many small P2PKH outputs
+# across the keys below, then record each resulting outpoint here.
+#
+# The adapter signs locally with these keys at trigger time — NO wallet call
+# in the hot path.
+#
+# `mainnet: false` => test/regtest address encoding. Set true for mainnet.
+
+mainnet: false
+
+accounts:
+
+  - wif: "cQ...replace_with_real_wif..."           # WIF private key
+    # address is derived from the WIF if omitted
+    utxos:
+      # Each entry is one spendable, pre-funded output. The reservation logic
+      # draws one UTXO per interaction, so pre-split AT LEAST as many outputs
+      # as the busiest account will send in the trace (until change-chaining
+      # lands — see builder.go reserve()).
+      - txid: "0000...replace_with_real_txid...0000"
+        vout: 0
+        # script may be omitted for a standard P2PKH funded to this account
+        satoshis: 5000
+
+      - txid: "1111...another_funding_outpoint...1111"
+        vout: 1
+        satoshis: 5000
+
+  - wif: "cP...second_account_wif..."
+    utxos:
+      - txid: "2222...........................2222"
+        vout: 0
+        satoshis: 5000

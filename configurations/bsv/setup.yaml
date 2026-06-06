@@ -1,0 +1,15 @@
+# Diablo setup for the BSV adapter (Teranode + arcade).
+# `interface: bsv` selects blockchains/nbsv. The endpoint address is the
+# arcade /tx base URL that secondaries broadcast to.
+interface: "bsv"
+
+parameters:
+  fee_rate: "150"        # sats/kB (mainnet; arcade min ~100)
+  confirm: "immediate"   # mempool-acceptance latency (smoke test). Use "mined" for honest block latency.
+
+endpoints:
+  - addresses:
+      - https://arcade.gorillapool.io
+    tags:
+      - mainnet
+      - arcade
