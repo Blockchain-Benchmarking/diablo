@@ -175,6 +175,94 @@ func TestDeterministicTxid(t *testing.T) {
 	}
 }
 
+// TestCellTokenSpendRoundTrip proves the cell-engine capability path actually
+// exercises OP_CHECKSIG: it spends a <cell> OP_DROP <pub> OP_CHECKSIG output
+// with a BARE signature (vs P2PKH's sig+pubkey), so the node runs OP_CHECKSIG
+// at validation. Account-model chains have no equivalent.
+func TestCellTokenSpendRoundTrip(t *testing.T) {
+	owner := makeFundedAccount(t, 1000000)
+
+	// cell-engine PushDrop lock built in Go.
+	cell := []byte("hello-cell-engine")
+	lock, err := buildCellTokenLock(cell, owner.priv.PubKey().Compressed())
+	if err != nil {
+		t.Fatalf("buildCellTokenLock: %v", err)
+	}
+	lb := []byte(*lock)
+	if lb[len(lb)-1] != script.OpCHECKSIG {
+		t.Fatalf("cell-token lock must end in OP_CHECKSIG (0x%02x), got 0x%02x",
+			script.OpCHECKSIG, lb[len(lb)-1])
+	}
+
+	// the cell-token output (as a prior celltoken tx would have produced it)
+	cellRef := &cellTokenRef{
+		txid:     "a1b2c3d4e5f600112233445566778899aabbccddeeff00112233445566778899",
+		vout:     0,
+		satoshis: 1,
+		lockHex:  lock.String(),
+		owner:    owner,
+	}
+	// a separate P2PKH funding output for the fee
+	fund := &utxoRef{
+		txid:     "ff00112233445566778899aabbccddeeff00112233445566778899aabbccddee",
+		vout:     0,
+		lockHex:  owner.lockHex,
+		satoshis: 100000,
+	}
+
+	enc := newCellSpendTransaction(owner.wif, cellRef, fund, owner.address)
+	var buf bytes.Buffer
+	if err := enc.encode(&buf); err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	wire := buf.Bytes()
+	if wire[0] != txTypeCellSpend {
+		t.Fatalf("wire type = %d, want %d", wire[0], txTypeCellSpend)
+	}
+
+	dec, err := decodeTransaction(bytes.NewBuffer(wire))
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	stx, err := dec.getTx()
+	if err != nil {
+		t.Fatalf("getTx: %v", err)
+	}
+
+	if len(stx.Inputs) != 2 {
+		t.Fatalf("inputs = %d, want 2 (cell + funding)", len(stx.Inputs))
+	}
+
+	// input 0 (cell-token): unlock must be a BARE signature for OP_CHECKSIG —
+	// ~73 bytes, NOT P2PKH's sig+pubkey (~107).
+	cellUnlock := stx.Inputs[0].UnlockingScript
+	if cellUnlock == nil || len(*cellUnlock) == 0 {
+		t.Fatalf("cell input has no unlocking script; OP_CHECKSIG sign failed")
+	}
+	if len(*cellUnlock) > 80 {
+		t.Fatalf("cell unlock is %d bytes — looks like sig+pubkey, want a bare "+
+			"OP_CHECKSIG signature", len(*cellUnlock))
+	}
+
+	// input 1 (funding): P2PKH unlock, sig+pubkey (~107 bytes).
+	fundUnlock := stx.Inputs[1].UnlockingScript
+	if fundUnlock == nil || len(*fundUnlock) == 0 {
+		t.Fatalf("funding input has no unlocking script")
+	}
+	if len(*fundUnlock) < 90 {
+		t.Fatalf("funding unlock is %d bytes — expected P2PKH sig+pubkey",
+			len(*fundUnlock))
+	}
+
+	// single change output (cell sats + funding - fee).
+	if len(stx.Outputs) != 1 {
+		t.Fatalf("outputs = %d, want 1 (change)", len(stx.Outputs))
+	}
+	if stx.Outputs[0].Satoshis == 0 {
+		t.Fatalf("change output is zero")
+	}
+}
+
 // TestChangeChaining proves the headline fix: a single funded UTXO sustains
 // many transfers because each tx's change is fed back into the pool.
 func TestChangeChaining(t *testing.T) {

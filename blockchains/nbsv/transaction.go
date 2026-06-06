@@ -17,23 +17,48 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"strconv"
 
 	ec "github.com/bsv-blockchain/go-sdk/primitives/ec"
 	"github.com/bsv-blockchain/go-sdk/script"
 	sdktx "github.com/bsv-blockchain/go-sdk/transaction"
 	feemodel "github.com/bsv-blockchain/go-sdk/transaction/fee_model"
+	sighash "github.com/bsv-blockchain/go-sdk/transaction/sighash"
 	"github.com/bsv-blockchain/go-sdk/transaction/template/p2pkh"
 )
 
 const (
-	txTypeTransfer uint8 = 0
-	txTypeScript   uint8 = 1
-
-	// feeRate is the sats/kB fee rate used when building transactions.
-	// TODO: source this from the ARC policy quote (GET /v1/policy) instead of
-	// a hard-coded constant so the benchmark tracks real network fees.
-	feeRate uint64 = 1
+	txTypeTransfer  uint8 = 0
+	txTypeScript    uint8 = 1
+	txTypeCellSpend uint8 = 2
 )
+
+// feeRate is the sats/kB fee rate used when building transactions. It is a var,
+// not a const, so it can be set from the `fee_rate` setup parameter to match
+// the live ARC policy quote (GET /v1/policy reports `miningFee`).
+//
+// INVARIANT: the primary (encode) and secondaries (trigger) MUST use the same
+// feeRate, or the deterministic tx they each build will differ and change-
+// chaining will reference phantom outpoints. Both read it from the same
+// setup.yaml `parameters:` block via configureFee, so they always agree.
+var feeRate uint64 = 1
+
+// configureFee sets feeRate from params["fee_rate"] if present.
+func configureFee(params map[string]string) error {
+	v, ok := params["fee_rate"]
+	if !ok || v == "" {
+		return nil
+	}
+	rate, err := strconv.ParseUint(v, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid fee_rate '%s': %w", v, err)
+	}
+	if rate == 0 {
+		return fmt.Errorf("fee_rate must be > 0")
+	}
+	feeRate = rate
+	return nil
+}
 
 // bsvTransaction is the decoded, ready-to-build representation handed to the
 // secondary. getTx() reconstructs and signs a concrete go-sdk transaction.
@@ -57,6 +82,8 @@ func decodeTransaction(src io.Reader) (bsvTransaction, error) {
 		return decodeTransferTransaction(src)
 	case txTypeScript:
 		return decodeScriptTransaction(src)
+	case txTypeCellSpend:
+		return decodeCellSpendTransaction(src)
 	default:
 		return nil, fmt.Errorf("unknown transaction type %d", txtype)
 	}
@@ -305,6 +332,175 @@ func (this *scriptTransaction) getTx() (*sdktx.Transaction, error) {
 		Satoshis:      this.outSats,
 	})
 
+	if err = addChangeAndSign(tx, this.changeAddr); err != nil {
+		return nil, err
+	}
+
+	return tx, nil
+}
+
+// ---------------------------------------------------------------------------
+// cell-engine spend: SPEND a cell-token output to exercise OP_CHECKSIG.
+//
+// The `script`/cell-token create path produces a PushDrop output of the form
+//   <cell> OP_DROP <ownerPubKey> OP_CHECKSIG
+// — capability no account-model chain can match. Creating it proves nothing
+// about VERIFY, though: the OP_CHECKSIG pipeline only runs when the output is
+// SPENT. cellSpendTransaction spends one such output (input 0, unlocked by a
+// bare signature) plus a P2PKH funding input (input 1) for the fee, so the
+// node actually executes the cell's OP_CHECKSIG at validation time.
+// ---------------------------------------------------------------------------
+
+// buildCellTokenLock builds <cell> OP_DROP <ownerPub> OP_CHECKSIG — the
+// cell-engine / PushDrop locking script, in Go (vs accepting raw hex).
+func buildCellTokenLock(cell, ownerPub []byte) (*script.Script, error) {
+	s := &script.Script{}
+	if err := s.AppendPushData(cell); err != nil {
+		return nil, err
+	}
+	if err := s.AppendOpcodes(script.OpDROP); err != nil {
+		return nil, err
+	}
+	if err := s.AppendPushData(ownerPub); err != nil {
+		return nil, err
+	}
+	if err := s.AppendOpcodes(script.OpCHECKSIG); err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+// cellPkUnlocker satisfies the go-sdk UnlockingScriptTemplate for a bare
+// `<pubkey> OP_CHECKSIG` (P2PK-style) output: the unlocking script is just the
+// signature (the pubkey already sits in the locking script). This is what
+// drives OP_CHECKSIG verification of a cell-token output.
+type cellPkUnlocker struct {
+	priv *ec.PrivateKey
+	flag sighash.Flag
+}
+
+func (this *cellPkUnlocker) Sign(tx *sdktx.Transaction, inputIndex uint32) (*script.Script, error) {
+	sh, err := tx.CalcInputSignatureHash(inputIndex, this.flag)
+	if err != nil {
+		return nil, err
+	}
+
+	sig, err := this.priv.Sign(sh)
+	if err != nil {
+		return nil, err
+	}
+
+	buf := append(sig.Serialize(), uint8(this.flag))
+
+	s := &script.Script{}
+	if err := s.AppendPushData(buf); err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+func (this *cellPkUnlocker) EstimateLength(*sdktx.Transaction, uint32) uint32 {
+	return 73 // ~72-byte DER sig + sighash flag + push opcode
+}
+
+type cellSpendTransaction struct {
+	wif         string
+	cellTxid    string
+	cellVout    uint32
+	cellSats    uint64
+	cellLockHex string
+	fundTxid    string
+	fundVout    uint32
+	fundSats    uint64
+	fundLockHex string
+	changeAddr  string
+}
+
+func newCellSpendTransaction(wif string, cell *cellTokenRef, fund *utxoRef, changeAddr string) *cellSpendTransaction {
+	return &cellSpendTransaction{
+		wif:         wif,
+		cellTxid:    cell.txid,
+		cellVout:    cell.vout,
+		cellSats:    cell.satoshis,
+		cellLockHex: cell.lockHex,
+		fundTxid:    fund.txid,
+		fundVout:    fund.vout,
+		fundSats:    fund.satoshis,
+		fundLockHex: fund.lockHex,
+		changeAddr:  changeAddr,
+	}
+}
+
+func (this *cellSpendTransaction) encode(dest io.Writer) error {
+	return util.NewMonadOutputWriter(dest).
+		SetOrder(binary.LittleEndian).
+		WriteUint8(txTypeCellSpend).
+		WriteUint16(uint16(len(this.wif))).WriteString(this.wif).
+		WriteUint16(uint16(len(this.cellTxid))).WriteString(this.cellTxid).
+		WriteUint32(this.cellVout).
+		WriteUint64(this.cellSats).
+		WriteUint32(uint32(len(this.cellLockHex))).WriteString(this.cellLockHex).
+		WriteUint16(uint16(len(this.fundTxid))).WriteString(this.fundTxid).
+		WriteUint32(this.fundVout).
+		WriteUint64(this.fundSats).
+		WriteUint16(uint16(len(this.fundLockHex))).WriteString(this.fundLockHex).
+		WriteUint16(uint16(len(this.changeAddr))).WriteString(this.changeAddr).
+		Error()
+}
+
+func decodeCellSpendTransaction(src io.Reader) (*cellSpendTransaction, error) {
+	var tx cellSpendTransaction
+	var lwif, lctxid, lftxid, lflock, lchg uint16
+	var lclock uint32
+
+	err := util.NewMonadInputReader(src).
+		SetOrder(binary.LittleEndian).
+		ReadUint16(&lwif).ReadString(&tx.wif, int(lwif)).
+		ReadUint16(&lctxid).ReadString(&tx.cellTxid, int(lctxid)).
+		ReadUint32(&tx.cellVout).
+		ReadUint64(&tx.cellSats).
+		ReadUint32(&lclock).ReadString(&tx.cellLockHex, int(lclock)).
+		ReadUint16(&lftxid).ReadString(&tx.fundTxid, int(lftxid)).
+		ReadUint32(&tx.fundVout).
+		ReadUint64(&tx.fundSats).
+		ReadUint16(&lflock).ReadString(&tx.fundLockHex, int(lflock)).
+		ReadUint16(&lchg).ReadString(&tx.changeAddr, int(lchg)).
+		Error()
+	if err != nil {
+		return nil, err
+	}
+
+	return &tx, nil
+}
+
+func (this *cellSpendTransaction) getTx() (*sdktx.Transaction, error) {
+	priv, err := ec.PrivateKeyFromWif(this.wif)
+	if err != nil {
+		return nil, err
+	}
+
+	tx := sdktx.NewTransaction()
+
+	// input 0: the cell-token output, unlocked by a bare signature ->
+	// OP_CHECKSIG runs at validation.
+	cellUnlocker := &cellPkUnlocker{priv: priv, flag: sighash.AllForkID}
+	if err = tx.AddInputFrom(this.cellTxid, this.cellVout, this.cellLockHex,
+		this.cellSats, cellUnlocker); err != nil {
+		return nil, err
+	}
+
+	// input 1: P2PKH funding input to cover the fee.
+	fundUnlocker, err := p2pkh.Unlock(priv, nil)
+	if err != nil {
+		return nil, err
+	}
+	if err = tx.AddInputFrom(this.fundTxid, this.fundVout, this.fundLockHex,
+		this.fundSats, fundUnlocker); err != nil {
+		return nil, err
+	}
+
+	// single change output absorbs cell sats + funding - fee, and signs both
+	// inputs (cell via OP_CHECKSIG sig, funding via P2PKH).
 	if err = addChangeAndSign(tx, this.changeAddr); err != nil {
 		return nil, err
 	}

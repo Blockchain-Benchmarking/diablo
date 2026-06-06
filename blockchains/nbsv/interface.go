@@ -19,6 +19,10 @@ type BlockchainInterface struct {
 func (this *BlockchainInterface) Builder(params map[string]string, env []string, endpoints map[string][]string, logger core.Logger) (core.BlockchainBuilder, error) {
 	logger.Debugf("new bsv builder")
 
+	if err := configureFee(params); err != nil {
+		return nil, err
+	}
+
 	envmap, err := parseEnvmap(env)
 	if err != nil {
 		return nil, err
@@ -51,6 +55,10 @@ func (this *BlockchainInterface) Builder(params map[string]string, env []string,
 // Client runs on each secondary. view[0] is the arcade/ARC base URL.
 func (this *BlockchainInterface) Client(params map[string]string, env, view []string, logger core.Logger) (core.BlockchainClient, error) {
 	logger.Tracef("new bsv client")
+
+	if err := configureFee(params); err != nil {
+		return nil, err
+	}
 
 	arcURL := view[0]
 	if !strings.HasPrefix(arcURL, "http://") && !strings.HasPrefix(arcURL, "https://") {

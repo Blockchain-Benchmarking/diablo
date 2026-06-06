@@ -3,6 +3,7 @@ package nbsv
 import (
 	"bytes"
 	"diablo-benchmark/core"
+	"encoding/hex"
 	"fmt"
 
 	sdktx "github.com/bsv-blockchain/go-sdk/transaction"
@@ -11,9 +12,23 @@ import (
 // BlockchainBuilder runs on the Diablo primary. It owns the pre-funded account
 // pool and turns scheduled interactions into opaque payloads (the encode step).
 type BlockchainBuilder struct {
-	logger   core.Logger
-	accounts []*account
-	used     int
+	logger     core.Logger
+	accounts   []*account
+	used       int
+	cellTokens []*cellTokenRef // created cell-token outputs awaiting a spend
+	cellCursor int             // reservation cursor into cellTokens
+}
+
+// cellTokenRef is a created `<cell> OP_DROP <pub> OP_CHECKSIG` output, tracked
+// at encode time so a later cellspend interaction can spend it (and run the
+// OP_CHECKSIG verify pipeline). owner is the account whose key both unlocks the
+// cell input and funds the spend.
+type cellTokenRef struct {
+	txid     string
+	vout     uint32
+	satoshis uint64
+	lockHex  string
+	owner    *account
 }
 
 func newBuilder(logger core.Logger) *BlockchainBuilder {
@@ -141,9 +156,109 @@ func (this *BlockchainBuilder) EncodeInteraction(itype string, expr core.Benchma
 	switch itype {
 	case "script":
 		return this.encodeScript(expr, info)
+	case "celltoken":
+		return this.encodeCellToken(expr, info)
+	case "cellspend":
+		return this.encodeCellSpend(expr, info)
 	default:
 		return nil, fmt.Errorf("unknown interaction type '%s'", itype)
 	}
+}
+
+// encodeCellToken handles `!celltoken { from, cell, satoshis }`: it builds a
+// proper cell-engine PushDrop output (<cell> OP_DROP <ownerPub> OP_CHECKSIG) in
+// Go and records its outpoint so a later cellspend can exercise OP_CHECKSIG.
+func (this *BlockchainBuilder) encodeCellToken(expr core.BenchmarkExpression, info core.InteractionInfo) ([]byte, error) {
+	from, err := expr.Field("from").GetResource("account")
+	if err != nil {
+		return nil, err
+	}
+	faccount := from.(*account)
+
+	cellHex, err := expr.Field("cell").GetString()
+	if err != nil {
+		return nil, err
+	}
+	cellBytes, err := hex.DecodeString(cellHex)
+	if err != nil {
+		return nil, fmt.Errorf("cell is not valid hex: %w", err)
+	}
+
+	outSats := 1
+	if field, ferr := expr.TryField("satoshis"); ferr == nil {
+		if outSats, err = field.GetInt(); err != nil {
+			return nil, err
+		}
+	}
+
+	lock, err := buildCellTokenLock(cellBytes, faccount.priv.PubKey().Compressed())
+	if err != nil {
+		return nil, err
+	}
+	lockHex := lock.String()
+
+	u, err := this.reserve(faccount)
+	if err != nil {
+		return nil, err
+	}
+
+	tx := newScriptTransaction(faccount.wif, u, lockHex, uint64(outSats),
+		faccount.address)
+
+	built, err := tx.getTx()
+	if err != nil {
+		return nil, err
+	}
+	this.chainChange(faccount, built)
+
+	// The cell-token is output 0 (the script output precedes change); record it
+	// for a future cellspend. Outpoint is real because signing is deterministic.
+	this.cellTokens = append(this.cellTokens, &cellTokenRef{
+		txid:     built.TxID().String(),
+		vout:     0,
+		satoshis: uint64(outSats),
+		lockHex:  lockHex,
+		owner:    faccount,
+	})
+
+	var buffer bytes.Buffer
+	if err = tx.encode(&buffer); err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
+}
+
+// encodeCellSpend handles `!cellspend {}`: it reserves a previously-created
+// cell-token output and spends it (input 0, bare-signature unlock) alongside a
+// P2PKH funding input from the cell's owner — the tx whose validation actually
+// runs the cell's OP_CHECKSIG.
+func (this *BlockchainBuilder) encodeCellSpend(expr core.BenchmarkExpression, info core.InteractionInfo) ([]byte, error) {
+	if this.cellCursor >= len(this.cellTokens) {
+		return nil, fmt.Errorf("no cell-token outputs to spend (%d created): "+
+			"schedule a 'celltoken' interaction before each 'cellspend'",
+			len(this.cellTokens))
+	}
+	cell := this.cellTokens[this.cellCursor]
+	this.cellCursor++
+
+	fund, err := this.reserve(cell.owner)
+	if err != nil {
+		return nil, err
+	}
+
+	tx := newCellSpendTransaction(cell.owner.wif, cell, fund, cell.owner.address)
+
+	built, err := tx.getTx()
+	if err != nil {
+		return nil, err
+	}
+	this.chainChange(cell.owner, built)
+
+	var buffer bytes.Buffer
+	if err = tx.encode(&buffer); err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
 }
 
 // encodeScript handles a `!script { from, script, satoshis }` interaction: it

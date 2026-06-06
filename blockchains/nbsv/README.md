@@ -13,7 +13,9 @@ selection from scratch rather than cribbing an existing template.
 | Claim | Interaction | Path |
 |---|---|---|
 | Payment throughput | `!transfer` | P2PKH input → P2PKH payment + change |
-| Custom-script / cell-engine capacity | `!script` | P2PKH input → arbitrary locking-script output + change |
+| Custom-script capacity | `!script` | P2PKH input → arbitrary locking-script output + change |
+| Cell-engine output | `!celltoken` | builds `<cell> OP_DROP <pub> OP_CHECKSIG`, records its outpoint |
+| Cell-engine VERIFY | `!cellspend` | spends a cell-token (bare-sig unlock) → runs OP_CHECKSIG at validation |
 
 Run the **same** trace (NASDAQ / Uber / FIFA) the EuroSys'23 paper ran against
 the other chains, on comparable hardware, to produce a directly comparable
@@ -88,10 +90,19 @@ Proves the encode → decode → sign pipeline yields a valid, fully-signed tx
 diablo primary --param confirm=mined ...
 ```
 
-**Remaining TODO:**
+3. **Cell-engine scripts + VERIFY.** `buildCellTokenLock` assembles a
+   `<cell> OP_DROP <pub> OP_CHECKSIG` output in Go (`!celltoken`), and
+   `!cellspend` spends it with a bare-signature unlock (`cellPkUnlocker`), so
+   the node executes OP_CHECKSIG at validation — capability no account-model
+   chain has. `TestCellTokenSpendRoundTrip` asserts the cell input carries a
+   bare sig (≈73 B), not P2PKH's sig+pubkey (≈107 B).
+4. **Configurable fee.** `feeRate` is set from the `fee_rate` setup parameter
+   (sats/kB) to match the live ARC policy quote (`GET /v1/policy` → `miningFee`).
+   Primary + secondaries read the same param, so the deterministic txs agree.
 
-3. **Real cell-engine scripts.** `!script` takes raw locking-script hex. Wire
-   the protocol-types cell codec to build the script, and add a second
-   interaction type that *spends* these outputs to exercise the OP_CHECKSIG
-   verify pipeline end-to-end.
-4. **Fee policy.** `feeRate` is a constant; source it from the ARC policy quote.
+## Remaining TODO
+
+- Auto-source `fee_rate` from a one-shot `/v1/policy` fetch at run start (still
+  pinned for the run so determinism holds), instead of the operator pasting it.
+- Build the cell bytes via the protocol-types codec rather than raw hex.
+- A live primary/secondary run against arcade (offline tests only so far).
