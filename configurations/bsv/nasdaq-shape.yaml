@@ -1,0 +1,25 @@
+# Realistic VARIABLE-RATE workload — a ramped burst profile (the SHAPE of a
+# real app trace like NASDAQ: rise, peak, taper) rather than a flat rate.
+# (The literal EuroSys NASDAQ data file isn't in this branch; this is the same
+# load-map mechanism the paper's traces drive, hand-shaped to demonstrate the
+# adapter under non-flat load.)
+let:
+  - &local
+    sample: !endpoint [ ".*" ]
+  - !loop &local_loc
+    sample: !location [ ".*" ]
+  - &account { sample: !account { number: 4, stake: 1 } }
+
+workloads:
+  - number: 1
+    client:
+      location: *local_loc
+      view: *local
+      behavior:
+        - interaction: !transfer { stake: 100, from: *account, to: *account }
+          load:
+            0: 2
+            6: 5
+            14: 5
+            20: 2
+            26: 0
