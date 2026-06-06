@@ -8,3 +8,4 @@ diablo
 
 wallet/
 configurations/bsv/keys.yaml
+configurations/bsv/keys-*.yaml
