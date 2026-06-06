@@ -7,11 +7,13 @@ package nbsv
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"testing"
 
 	ec "github.com/bsv-blockchain/go-sdk/primitives/ec"
 	"github.com/bsv-blockchain/go-sdk/script"
 	"github.com/bsv-blockchain/go-sdk/transaction/template/p2pkh"
+	"gopkg.in/yaml.v3"
 )
 
 // makeFundedAccount generates a key and a single pre-funded P2PKH UTXO for it.
@@ -315,5 +317,59 @@ func TestChangeChaining(t *testing.T) {
 			t.Fatalf("duplicate chained outpoint %s", key)
 		}
 		seen[key] = true
+	}
+}
+
+// TestFundingFanout proves the funding tool produces a keys.yaml that the real
+// loader accepts and whose accounts are spendable — the offline half of the
+// one-time funding step (the other half is broadcasting the fan-out).
+func TestFundingFanout(t *testing.T) {
+	master := makeFundedAccount(t, 10000000)
+	mu := master.utxos[0]
+
+	tx, kf, err := BuildFundingTx(master.wif, mu.txid, mu.vout, mu.satoshis,
+		4, 100000, false)
+	if err != nil {
+		t.Fatalf("buildFundingTx: %v", err)
+	}
+
+	if len(kf.Accounts) != 4 {
+		t.Fatalf("accounts = %d, want 4", len(kf.Accounts))
+	}
+	if len(tx.Outputs) != 5 {
+		t.Fatalf("outputs = %d, want 5 (4 accounts + change)", len(tx.Outputs))
+	}
+	txid := tx.TxID().String()
+	for i, acc := range kf.Accounts {
+		if len(acc.Utxos) != 1 {
+			t.Fatalf("account %d utxos = %d, want 1", i, len(acc.Utxos))
+		}
+		if acc.Utxos[0].Vout != uint32(i) || acc.Utxos[0].Txid != txid ||
+			acc.Utxos[0].Satoshis != 100000 {
+			t.Fatalf("account %d outpoint wrong: %+v", i, acc.Utxos[0])
+		}
+	}
+
+	// round-trip through the REAL loader, then prove an account is spendable.
+	data, err := yaml.Marshal(kf)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	path := t.TempDir() + "/keys.yaml"
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	accs, err := loadKeyfile(path)
+	if err != nil {
+		t.Fatalf("loadKeyfile: %v", err)
+	}
+	if len(accs) != 4 {
+		t.Fatalf("loaded %d accounts, want 4", len(accs))
+	}
+
+	enc := newTransferTransaction(accs[0].wif, 1000, accs[0].utxos[0],
+		accs[1].address, accs[0].address)
+	if _, err := enc.getTx(); err != nil {
+		t.Fatalf("funded account not spendable: %v", err)
 	}
 }

@@ -37,18 +37,27 @@ Encoding runs **once on the primary**, producing opaque bytes shipped to the
 secondaries, each of which decodes, signs, and broadcasts at trigger time. The
 signer WIF travels in the payload (same approach as nsolana's raw private key).
 
-## Funding step (one-time, via Metanet Desktop :3321)
+## Funding step (one-time) — `nbsv-fund`
 
-Benchmarks must not call a wallet per transaction. Instead, fund a key pool
-once:
+Benchmarks must not call a wallet per transaction. Fund a key pool once with the
+bundled tool: it generates N keys, builds the fan-out splitting a funded master
+output into one pre-funded P2PKH output per account, and writes `keys.yaml`.
+Change-chaining (see `builder.go`) means **one output per account suffices** —
+the trace's change feeds itself.
 
-1. Generate N keys.
-2. Broadcast a **fan-out** tx from Metanet Desktop's BRC-100 interface
-   (`http://localhost:3321`) splitting coins into many small P2PKH outputs
-   across those keys.
-3. Record each outpoint in `keys.yaml` (see `configurations/bsv/keys.example.yaml`).
+```sh
+go run ./blockchains/nbsv/cmd/nbsv-fund \
+    -master-wif <funded-master-WIF> \
+    -master-utxo <txid>:<vout>:<sats> \
+    -accounts 8 -sats 100000 -mainnet \
+    -out configurations/bsv/keys.yaml -broadcast -arc-url https://arcade.gorillapool.io
+```
 
-The hot path then signs locally with go-sdk — no wallet round-trip.
+Without `-broadcast` it's a **dry run**: it writes `keys.yaml` and prints the raw
+fan-out tx hex for you to broadcast yourself (e.g. `POST` to arcade `/tx`). Fund
+the master output first (any wallet — e.g. Metanet Desktop's BRC-100 interface on
+`http://localhost:3321`). The hot path then signs locally with go-sdk — no wallet
+round-trip.
 
 ## Run
 
