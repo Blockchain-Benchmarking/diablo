@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"diablo-benchmark/blockchains/mock"
 	"diablo-benchmark/blockchains/nalgorand"
+	"diablo-benchmark/blockchains/nbsv"
 	"diablo-benchmark/blockchains/ndiem"
 	"diablo-benchmark/blockchains/nethereum"
 	"diablo-benchmark/blockchains/nsolana"
@@ -38,6 +39,7 @@ const (
 func buildSystemMap() map[string]core.BlockchainInterface {
 	return map[string]core.BlockchainInterface{
 		"algorand": &nalgorand.BlockchainInterface{},
+		"bsv":      &nbsv.BlockchainInterface{},
 		"diem":     &ndiem.BlockchainInterface{},
 		"ethereum": &nethereum.BlockchainInterface{},
 		"solana":   &nsolana.BlockchainInterface{},

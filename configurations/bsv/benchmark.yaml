@@ -1,0 +1,50 @@
+# BSV benchmark workload exercising BOTH capability claims:
+#   1. payment throughput  -> !transfer  (plain P2PKH)
+#   2. custom-script / cell-engine -> !script (routes to EncodeInteraction)
+#
+# Swap the `load` maps for a real EuroSys trace (NASDAQ / Uber / FIFA) to make
+# a directly comparable claim against the other Diablo-supported chains.
+
+let:
+
+  - &local
+    sample: !endpoint [ ".*" ]
+
+  - !loop &local_loc
+    sample: !location [ ".*" ]
+
+  # NOTE: `number` must be <= the number of premade accounts in keys.yaml, and
+  # each account needs enough pre-funded UTXOs to cover the transfers it sends.
+  - &account { sample: !account { number: 2, stake: 1 } }
+
+  - &offset
+    sample: !float { from: 0, to: 0.999 }
+
+workloads:
+
+  # ---- payment throughput ----
+  - number: 1
+    client:
+      location: *local_loc
+      view: *local
+      behavior:
+        - interaction: !transfer { stake: 1000, from: *account, to: *account }
+          load:
+            *offset: 1
+            10:      0
+
+  # ---- custom-script / cell-engine output ----
+  - number: 1
+    client:
+      location: *local_loc
+      view: *local
+      behavior:
+        # `script` is the locking-script hex to place on the created output.
+        # Replace with a real cell-engine / PushDrop locking script.
+        - interaction: !script
+            from: *account
+            satoshis: 500
+            script: "047465737475 51"   # PUSH "test" OP_DROP OP_TRUE (placeholder)
+          load:
+            *offset: 1
+            10:      0
