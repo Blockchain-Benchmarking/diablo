@@ -328,7 +328,7 @@ func TestFundingFanout(t *testing.T) {
 	mu := master.utxos[0]
 
 	tx, kf, err := BuildFundingTx(master.wif, mu.txid, mu.vout, mu.satoshis,
-		4, 100000, false)
+		4, 100000, false, 50)
 	if err != nil {
 		t.Fatalf("buildFundingTx: %v", err)
 	}

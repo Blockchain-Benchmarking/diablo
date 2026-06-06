@@ -12,15 +12,18 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
 
 	"diablo-benchmark/blockchains/nbsv"
 
-	"github.com/bsv-blockchain/go-sdk/transaction/broadcaster"
 	"gopkg.in/yaml.v3"
 )
 
@@ -33,6 +36,7 @@ func main() {
 	out := flag.String("out", "keys.yaml", "keys.yaml output path")
 	doBroadcast := flag.Bool("broadcast", false, "broadcast the fan-out via ARC")
 	arcURL := flag.String("arc-url", "https://arcade.gorillapool.io", "ARC/arcade base URL")
+	feeRate := flag.Uint64("fee-rate", 100, "fee rate sats/kB (mainnet wants ~50+)")
 	flag.Parse()
 
 	if *masterWif == "" || *masterUtxo == "" {
@@ -40,7 +44,7 @@ func main() {
 	}
 	txid, vout, msats := parseUtxo(*masterUtxo)
 
-	tx, kf, err := nbsv.BuildFundingTx(*masterWif, txid, vout, msats, *accounts, *sats, *mainnet)
+	tx, kf, err := nbsv.BuildFundingTx(*masterWif, txid, vout, msats, *accounts, *sats, *mainnet, *feeRate)
 	if err != nil {
 		fatal(err.Error())
 	}
@@ -63,11 +67,32 @@ func main() {
 		return
 	}
 
-	arc := &broadcaster.Arc{ApiUrl: *arcURL}
-	if _, failure := tx.Broadcast(arc); failure != nil {
-		fatal(fmt.Sprintf("broadcast failed [%s]: %s", failure.Code, failure.Description))
+	// Direct EF octet-stream POST to arcade /tx. (go-sdk's broadcaster.Arc only
+	// reports success on a numeric `status:200`, but arcade replies with a
+	// txStatus-only body, so it misreads every arcade response as a `[0]`
+	// failure — we read arcade's real txStatus instead.)
+	ef, err := tx.EF()
+	if err != nil {
+		fatal("build EF: " + err.Error())
 	}
-	fmt.Printf("\nbroadcast OK via %s — keys.yaml ready.\n", *arcURL)
+	resp, err := http.Post(*arcURL+"/tx", "application/octet-stream", bytes.NewReader(ef))
+	if err != nil {
+		fatal("POST: " + err.Error())
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	var r struct {
+		TxStatus  string `json:"txStatus"`
+		Status    string `json:"status"`
+		Error     string `json:"error"`
+		ExtraInfo string `json:"extraInfo"`
+	}
+	_ = json.Unmarshal(body, &r)
+	if r.TxStatus == "REJECTED" || r.Error != "" {
+		fatal(fmt.Sprintf("arcade rejected: %s %s", r.Error, r.ExtraInfo))
+	}
+	fmt.Printf("\nbroadcast OK via %s (txStatus=%s%s) — keys.yaml ready.\n",
+		*arcURL, r.TxStatus, r.Status)
 }
 
 func parseUtxo(s string) (string, uint32, uint64) {

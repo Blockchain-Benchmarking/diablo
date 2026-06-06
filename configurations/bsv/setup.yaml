@@ -1,20 +1,15 @@
 # Diablo setup for the BSV adapter (Teranode + arcade).
-#
-# `interface: bsv` selects blockchains/nbsv. Each endpoint address is the
-# arcade (ARC) HTTP base URL that secondaries broadcast to. The pre-funded
-# keys file is passed separately on the Diablo primary command line:
-#
-#   diablo primary --env keys=configurations/bsv/keys.yaml ... setup.yaml benchmark.yaml
-#
+# `interface: bsv` selects blockchains/nbsv. The endpoint address is the
+# arcade /tx base URL that secondaries broadcast to.
 interface: "bsv"
 
 parameters:
-  # arc_api_key: "<token>"   # optional; omit for an open/local arcade
+  fee_rate: "150"        # sats/kB (mainnet; arcade min ~100)
+  confirm: "immediate"   # mempool-acceptance latency (smoke test). Use "mined" for honest block latency.
 
 endpoints:
-
   - addresses:
-      - 127.0.0.1:9090          # arcade / ARC base URL (http:// assumed)
+      - https://arcade.gorillapool.io
     tags:
-      - local
-      - teranode
+      - mainnet
+      - arcade

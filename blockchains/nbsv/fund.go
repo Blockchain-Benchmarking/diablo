@@ -22,9 +22,12 @@ import (
 // master key) out to `n` freshly generated accounts, `satsPerAccount` each,
 // with change back to the master. It returns the signed tx and the keyfile that
 // records each account's WIF + its funded outpoint (the fan-out txid, vout i).
-func BuildFundingTx(masterWif, masterTxid string, masterVout uint32, masterSats uint64, n int, satsPerAccount uint64, mainnet bool) (*sdktx.Transaction, *keyfile, error) {
+func BuildFundingTx(masterWif, masterTxid string, masterVout uint32, masterSats uint64, n int, satsPerAccount uint64, mainnet bool, feeRatePerKB uint64) (*sdktx.Transaction, *keyfile, error) {
 	if n <= 0 {
 		return nil, nil, fmt.Errorf("need at least one account")
+	}
+	if feeRatePerKB > 0 {
+		feeRate = feeRatePerKB // package var; addChangeAndSign reads it
 	}
 
 	masterPriv, err := ec.PrivateKeyFromWif(masterWif)

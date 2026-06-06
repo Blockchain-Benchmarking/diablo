@@ -1,0 +1,20 @@
+# Minimal smoke trace: a handful of P2PKH transfers across 2 accounts.
+let:
+  - &local
+    sample: !endpoint [ ".*" ]
+  - !loop &local_loc
+    sample: !location [ ".*" ]
+  - &account { sample: !account { number: 2, stake: 1 } }
+  - &offset
+    sample: !float { from: 0, to: 0.999 }
+
+workloads:
+  - number: 1
+    client:
+      location: *local_loc
+      view: *local
+      behavior:
+        - interaction: !transfer { stake: 1000, from: *account, to: *account }
+          load:
+            *offset: 2
+            5: 0

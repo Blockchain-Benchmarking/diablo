@@ -20,6 +20,7 @@ type BlockchainClient struct {
 	logger      core.Logger
 	broadcaster *broadcaster.Arc
 	confirmer   transactionConfirmer
+	httpClient  *http.Client
 }
 
 func newClient(logger core.Logger, bcast *broadcaster.Arc, confirmer transactionConfirmer) *BlockchainClient {
@@ -27,6 +28,7 @@ func newClient(logger core.Logger, bcast *broadcaster.Arc, confirmer transaction
 		logger:      logger,
 		broadcaster: bcast,
 		confirmer:   confirmer,
+		httpClient:  &http.Client{Timeout: 20 * time.Second},
 	}
 }
 
@@ -51,18 +53,22 @@ func (this *BlockchainClient) TriggerInteraction(iact core.Interaction) error {
 		return err
 	}
 
-	this.logger.Tracef("submit transaction %s", stx.TxID().String())
+	txid := stx.TxID().String()
+	this.logger.Tracef("submit transaction %s", txid)
 
 	iact.ReportSubmit()
 
-	_, failure := this.broadcaster.Broadcast(stx)
-	if failure != nil {
+	// Direct EF POST (see broadcast.go for why go-sdk's Arc.Broadcast can't be
+	// used against arcade).
+	status, err := broadcastEF(this.httpClient, this.broadcaster.ApiUrl,
+		this.broadcaster.ApiKey, stx)
+	if err != nil {
 		iact.ReportAbort()
-		return fmt.Errorf("broadcast failed [%s]: %s", failure.Code,
-			failure.Description)
+		return fmt.Errorf("broadcast %s failed: %w", txid, err)
 	}
+	this.logger.Tracef("submitted %s (%s)", txid, status)
 
-	return this.confirmer.confirm(iact, stx.TxID().String())
+	return this.confirmer.confirm(iact, txid)
 }
 
 // transactionConfirmer decides when an interaction has committed, firing
